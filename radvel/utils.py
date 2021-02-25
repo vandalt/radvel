@@ -116,7 +116,7 @@ Converting 'logjit' to 'jit' for you now.
                 kernel_name = P.kernel_name[inst]
                 # if kernel_name == "Celerite":
                 #     liketype = radvel.likelihood.CeleriteLikelihood
-                if kernel_name == "Celerite":
+                if "Celerite" in kernel_name:
                      liketype = radvel.likelihood.CeleriteLikelihood
             except AttributeError:
                 kernel_name = "QuasiPer"
@@ -530,7 +530,7 @@ def semi_major_axis(P, Mtotal):
     Mtotal = Mtotal*c.M_sun.value
     P = (P * u.d).to(u.second).value
     G = c.G.value
-    
+
     a = ((P**2)*G*Mtotal/(4*(np.pi)**2))**(1/3.)
     a = a/c.au.value
 
@@ -596,7 +596,7 @@ def Msini(K, P, Mstar, e, Msini_units='earth'):
 
         Msini = np.array(Msini)
         Msini = Msini/Mjup
-    
+
     if Msini_units.lower() == 'jupiter':
         pass
     elif Msini_units.lower() == 'earth':

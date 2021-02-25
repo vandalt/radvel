@@ -13,7 +13,8 @@ KERNELS = {
     "SqExp": ['gp_length', 'gp_amp'],
     "Per": ['gp_per', 'gp_length', 'gp_amp'],
     "QuasiPer": ['gp_per', 'gp_perlength', 'gp_explength', 'gp_amp'],
-    "Celerite": ['gp_B', 'gp_C', 'gp_L', 'gp_Prot']
+    "Celerite": ['gp_B', 'gp_C', 'gp_L', 'gp_Prot'],
+    "Matern32Celerite": ['gp_sigma', 'gp_rho'],
 }
 
 if sys.version_info[0] < 3:
@@ -455,6 +456,134 @@ CeleriteKernel requires hyperparameters 'gp_B*', 'gp_C*', 'gp_L', and 'gp_Prot*'
             self.complex[:,2], self.complex[:,3],
             self.A, self.U, self.V,
             self.x, errors**2
+        )
+
+        return solver
+
+
+class Matern32CeleriteKernel(Kernel):
+    """
+    Class that computes and stores a matrix approximating the Matern 3/2
+    kernel.
+
+    See celerite.readthedocs.io and Foreman-Mackey et al. 2017. AJ, 154, 220
+    (equation 56) for more details.
+
+    An arbitrary element, :math:`C_{ij}`, of the matrix is:
+
+    Args:
+        hparams (dict of radvel.Parameter): dictionary containing
+            radvel.Parameter objects that are GP hyperparameters
+            of this kernel. Must contain exactly two objects, 'gp_sigma*',
+            'gp_rho*', where * is a suffix identifying these hyperparameters
+            with a likelihood object.
+    """
+
+    @property
+    def name(self):
+        return "Matern32Celerite"
+
+    def __init__(self, hparams, eps=0.01):
+
+        self.hparams = {}
+        for par in hparams:
+            if par.startswith("gp_sigma"):
+                self.hparams["gp_sigma"] = hparams[par]
+            if par.startswith("gp_rho"):
+                self.hparams["gp_rho"] = hparams[par]
+
+        assert (
+            len(self.hparams) == 2
+        ), "CeleriteKernel requires exactly 2 hyperparameters with names 'gp_sigma', 'gp_rho'."
+
+        if eps > 0.0:
+            self.eps = eps
+        if eps <= 0.0:
+            raise ValueError("eps shouldd be greater than zero.")
+
+        try:
+            self.hparams["gp_sigma"].value
+            self.hparams["gp_rho"].value
+        except KeyError:
+            raise KeyError(
+                "CeleriteKernel requires hyperparameters 'gp_sigma*', 'gp_rho*',."
+            )
+        except AttributeError:
+            raise AttributeError(
+                "CeleriteKernel requires dictionary of radvel.Parameter objects as input."
+            )
+
+    # get arrays of real and complex parameters
+    def compute_real_and_complex_hparams(self):
+
+        self.real = (np.empty(0), np.empty(0))
+        self.complex = np.zeros((1, 4))
+
+        sigma = self.hparams["gp_sigma"].value
+        rho = self.hparams["gp_rho"].value
+
+        w0 = np.sqrt(3.0) / rho
+        S0 = sigma ** 2.0 / w0
+
+        # Foreman-Mackey et al. (2017) eq 29
+        # self.real[0, 0] = np.empty(0)
+        # self.real[0, 1] = np.empty(0)
+        self.complex[0, 0] = w0 * S0
+        self.complex[0, 1] = w0 * w0 * S0 / self.eps
+        self.complex[0, 2] = w0
+        self.complex[0, 3] = self.eps
+
+    def __repr__(self):
+
+        sigma = self.hparams["gp_sigma"].value
+        rho = self.hparams["gp_rho"].value
+
+        msg = ("Matern 3/2 Kernel with sigma = {}, rho = {}.").format(sigma, rho)
+        return msg
+
+    def compute_distances(self, x1, x2):
+        """
+        The celerite.solver.CholeskySolver object does
+        not require distances to be precomputed, so
+        this method has been co-opted to define some
+        unchanging variables.
+        """
+        self.x = x1
+
+        # blank matrices (corresponding to Cholesky decomp of kernel) needed for celerite solver
+        self.A = np.empty(0)
+        self.U = np.empty((0, 0))
+        self.V = self.U
+
+    def compute_covmatrix(self, errors):
+        """Compute the Cholesky decomposition of a celerite kernel
+
+        Args:
+            errors (array of float): observation errors and jitter added
+                in quadrature
+
+        Returns:
+            celerite.solver.CholeskySolver: the celerite solver object,
+            with Cholesky decomposition computed.
+        """
+        # initialize celerite solver object
+        solver = CholeskySolver()
+
+        self.compute_real_and_complex_hparams()
+
+        solver.compute(
+            0.0,
+            self.real[0],
+            self.real[1],
+            self.complex[:, 0],
+            self.complex[:, 1],
+            self.complex[:, 2],
+            self.complex[:, 3],
+            self.A,
+            self.U,
+            self.V,
+            self.x,
+            errors ** 2,
         )
 
         return solver
