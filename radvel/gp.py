@@ -15,8 +15,8 @@ KERNELS = {
     "SqExp": ["gp_length", "gp_amp"],
     "Per": ["gp_per", "gp_length", "gp_amp"],
     "QuasiPer": ["gp_per", "gp_perlength", "gp_explength", "gp_amp"],
-    "Matern32Kernel": ["gp_length", "gp_amp"],
-    "Matern52Kernel": ["gp_length", "gp_amp"],
+    "Matern32": ["gp_length", "gp_amp"],
+    "Matern52": ["gp_length", "gp_amp"],
     "Celerite": ["gp_B", "gp_C", "gp_L", "gp_Prot"],
 }
 
@@ -520,7 +520,7 @@ class Matern52Kernel(Kernel):
         amp = self.hparams["gp_amp"].value
 
         dterm = np.sqrt(5) * self.dist / length
-        d2term = 5 * self.dist2 / (3 * length)
+        d2term = 5 * self.dist2 / (3 * length**2)
         K = amp ** 2 * (1 + dterm + d2term) * scipy.exp(-dterm)
 
         self.covmatrix = K
