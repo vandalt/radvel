@@ -444,6 +444,8 @@ class NumericalPrior(Prior):
             (# of elements in param_list, # of data points).
         bw_method (str, scalar, or callable [optional]): see
             scipy.stats.gaussian_kde
+        bins (int [optional]): number of bins for the histogram when creating
+            nested sampling prior transform. Defaults to 100.
 
     Note: the larger the input array of values, the longer it will
     take for calls to this prior to be evaluated. Consider thinning
@@ -451,9 +453,13 @@ class NumericalPrior(Prior):
 
     """
 
-    def __init__(self, param_list, values, bw_method=None):
+    def __init__(self, param_list, values, bw_method=None, bins=100):
         self.param_list = param_list
         self.pdf_estimate = gaussian_kde(values, bw_method=bw_method)
+        # Ref (and source code) for the histogram: https://johannesbuchner.github.io/UltraNest/priors.html#Non-analytic-priors
+        hist, bin_edges = np.histogram(values, bins=bins)
+        self.hist_cumulative = np.cumsum(hist / hist.sum())
+        self.bin_middle = (bin_edges[:-1] + bin_edges[1:]) / 2
 
     def __call__(self, params, vector):
         x = []
@@ -463,9 +469,7 @@ class NumericalPrior(Prior):
         return val[0]
 
     def transform(self, u):
-        # TODO: See link below as possible way to implement this
-        # https://stackoverflow.com/questions/47417986/using-scipy-gaussian-kernel-density-estimation-to-calculate-cdf-inverse
-        raise NotImplementedError("Prior transform not available for NumericalPrior")
+        return np.interp(u, self.hist_cumulative, self.bin_middle)
 
     def __repr__(self):
         s = "Numerical prior on {}".format(
