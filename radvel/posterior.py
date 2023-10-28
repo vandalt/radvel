@@ -73,6 +73,8 @@ class Posterior(Likelihood):
                 raise ValueError("Prior specified for fixed parameter {}".format(pname))
 
     def prior_transform(self, u):
+        # TODO: Document to user that they can completely overwrite this if
+        # they feel like doing fancy things
         x = np.array(u)
         # NOTE: This assumes that each parameter has only one prior.
         # check_proper_priors() or an assertion somewhere in prior_transform() would fix this for small performance hit
@@ -80,8 +82,24 @@ class Posterior(Likelihood):
         vary_param_names = self.name_vary_params()
         prior_dict = self.get_prior_dict()
         for ind, pname in enumerate(vary_param_names):
-            x[ind] = prior_dict[pname].transform(u[ind])
+            prior = prior_dict[pname]
+            if not prior.extra_constraint:
+                x[ind] = prior.transform(u[ind])
         return x
+
+    def extra_likelihood(self):
+        _logprob = 0
+        for prior in self.priors:
+            if prior.extra_constraint:
+                _logprob += prior(self.params, self.vector)
+        return _logprob
+
+    def likelihood_ns_array(self, param_values_array):
+        self.likelihood.set_vary_params(param_values_array)
+        extra_likelihood = self.extra_likelihood()
+        if np.isfinite(extra_likelihood):
+            return extra_likelihood + self.likelihood.logprob()
+        return extra_likelihood
 
     def logprob_array(self, param_values_array):
         """Log probability for parameter vector

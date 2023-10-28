@@ -10,6 +10,12 @@ from radvel import utils
 
 
 class Prior(object):
+
+    # By default, priors are not extra constraints.
+    # They should specify if they are.
+    # Relevant only for nested sampling.
+    extra_constraint = False
+
     def __repr__(self):
         return "Generic Prior"
 
@@ -66,9 +72,11 @@ class EccentricityPrior(Prior):
             the prior will only be applied to the specified planets.
         upperlims (float or list of floats): List of eccentricity upper limits to assign
             to each of the planets. If a float is given then all planets must have
-            eccentricities less then this value. If a list of floats is given then
+            eccentricities less than this value. If a list of floats is given then
             each planet can have a different eccentricity upper limit.
     """
+
+    extra_constraint = True
 
     def __repr__(self):
         msg = ""
@@ -131,9 +139,11 @@ upper limits must match number of planets."
         return -np.sum(np.log(self.upperlims))
 
     def transform(self, u):
-        # TODO: Truncated version of eccentricity's main prior if any, error if other bound unspecified
-        # TODO: 'ModelOK' equivalent for this as hack
-        raise NotImplementedError("Prior transform not yet available for EccentricityPrior")
+        raise NotImplementedError(
+            "EccentricityPrior places an extra_constraint on existing parameters. "
+            "It will be called by 'extra_likelihood' and not as a prior transform. "
+            "If your only constraint for Eccentricity is (0, 1), use HardBounds or UnitDisk."
+        )
 
 
 class PositiveKPrior(Prior):
@@ -147,6 +157,8 @@ class PositiveKPrior(Prior):
         num_planets (int): Number of planets. Used to ensure K for each
             planet is positive
     """
+
+    extra_constraint = True
 
     def __repr__(self):
         return "K constrained to be > 0"
@@ -172,9 +184,11 @@ class PositiveKPrior(Prior):
         return 0
 
     def transform(self, u):
-        # TODO: Truncated version of K's main prior if any, error if other bound unspecified
-        # ModelOK equivalent for this as hack?
-        raise NotImplementedError("Prior transform not yet available for EccentricityPrior")
+        raise NotImplementedError(
+            "PositiveKPrior places an extra_constraint on existing parameters. "
+            "It will be called by 'extra_likelihood' and not as a prior transform. "
+            "If your only constraint for K is (0, 1), use HardBounds (or a log-scale prior)"
+        )
 
 
 class HardBounds(Prior):
@@ -251,6 +265,8 @@ class SecondaryEclipsePrior(Prior):
         ts_err (float): Uncertainty on secondary eclipse time
     """
 
+    extra_constraint = True
+
     def __repr__(self):
         msg = ""
         msg += "secondary eclipse constraint: {} +/- {}\n".format(self.ts, self.ts_err)
@@ -290,8 +306,11 @@ class SecondaryEclipsePrior(Prior):
         return penalty
 
     def transform(self, u):
-        # TODO: Add prior transform
-        raise NotImplementedError("Prior transform not yet available for SecondaryEclipsePrior")
+        raise NotImplementedError(
+            "SecondaryEclipsePrior places an extra_constraint on existing parameters. "
+            "It will be called by 'extra_likelihood' and not as a prior transform. "
+            "If your only constraint for K is (0, 1), use HardBounds (or a log-scale prior)"
+        )
 
 
 class Jeffreys(Prior):
