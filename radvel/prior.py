@@ -142,7 +142,7 @@ upper limits must match number of planets."
         raise NotImplementedError(
             "EccentricityPrior places an extra_constraint on existing parameters. "
             "It will be called by 'extra_likelihood' and not as a prior transform. "
-            "If your only constraint for Eccentricity is (0, 1), use HardBounds or UnitDisk."
+            "If your basis uses eccentricity directly and your only constraint is U(0, 1), use HardBounds."
         )
 
 
