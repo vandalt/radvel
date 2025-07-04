@@ -14,6 +14,7 @@ from .model import *
 from .likelihood import *
 from . import posterior
 from .mcmc import *
+from .nested_sampling import *
 from .prior import *
 from .utils import *
 from .report import *
@@ -27,7 +28,7 @@ def _custom_warningfmt(msg, *a, **b):
     return "WARNING:", str(msg) + '\n'
 
 __all__ = ['model', 'likelihood', 'posterior', 'mcmc', 'prior', 'utils',
-         'fitting', 'report', 'cli', 'driver', 'gp']
+         'fitting', 'report', 'cli', 'driver', 'gp', 'nested_sampling']
 
 __version__ = '1.4.11'
 __package__ = __path__[0]
