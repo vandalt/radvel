@@ -170,7 +170,8 @@ class Posterior(Likelihood):
         extra_likelihood = self.extra_likelihood()
         if np.isfinite(extra_likelihood):
             return extra_likelihood + self.likelihood.logprob()
-        return extra_likelihood
+        # Ultranest requires finite values, so return very large negative instead of -inf
+        return -1e100
 
     def logprob_array(self, param_values_array):
         """Log probability for parameter vector
