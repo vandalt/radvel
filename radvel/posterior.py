@@ -51,50 +51,121 @@ class Posterior(Likelihood):
             return _logprob + self.likelihood.logprob()
         return _logprob
 
-    def get_prior_pnames(self):
-        return [p.param for p in self.priors]
-
     def get_prior_dict(self):
-        return {p.param: p for p in self.priors}
+        """Prior dictionary
+        Returns:
+            dict: Dictionary mapping parameters to a list of their priors
+        """
+        prior_dict = dict()
+        for prior in self.priors:
+            try:
+                param = prior.param
+            except AttributeError:
+                continue
+            if param not in prior_dict:
+                prior_dict[param] = [prior]
+            else:
+                prior_dict[param] += [prior]
+        return prior_dict
 
     def check_proper_priors(self):
-        params_with_prior = self.get_prior_pnames()
+        """Checks that the priors are proper for nested sampling.
+        Checks that the priors are properly normalized and that there is only one prior per parameter.
+        Runs internally before nested sampling.
+        """
         vary_params = self.name_vary_params()
+        prior_dict = self.get_prior_dict()
         for pname in vary_params:
-            num_priors = params_with_prior.count(pname)
+            prior_list = prior_dict.get(pname, [])
+            num_priors = len(prior_list)
             if num_priors == 0:
                 raise ValueError("No prior specified for free parameter {}".format(pname))
-            elif num_priors > 1:
-                raise ValueError(
-                    "Multiple priors specified for free parameter {}. Not supported for nested sampling.".format(pname)
-                )
-        for pname in params_with_prior:
-            if pname not in vary_params:
-                raise ValueError("Prior specified for fixed parameter {}".format(pname))
+            else:
+                num_prior_transforms = 0
+                for prior in prior_list:
+                    num_prior_transforms += int(not prior.extra_constraint)
+                if num_prior_transforms == 0:
+                    raise ValueError(
+                        "All priors for free parameter {} are 'extra_constraint' priors. "
+                        "Prior transform required for nested sampling.".format(pname)
+                    )
+                elif num_prior_transforms > 1:
+                    raise ValueError(
+                        "Multiple prior transforms specified for free parameter {}. "
+                        "Not supported for nested sampling. "
+                        "Use priors with `extra_constraint=True` to put additional constraints on a parameter".format(pname)
+                    )
+        for pname in prior_dict:
+            for prior in prior_dict[pname]:
+                if pname not in vary_params and not prior.extra_constraint:
+                    raise ValueError(
+                        "Prior transform specified for fixed parameter {}. "
+                        "Use `extra_constraint` to constrain fixed or deterministic parameters".format(pname)
+                    )
+
 
     def prior_transform(self, u):
-        # TODO: Document to user that they can completely overwrite this if
-        # they feel like doing fancy things
+        """Prior transform for all model parameters
+        Takes an array of uniform values between 0 and 1 and converts them to parametre values
+        through each parameter's prior transform.
+
+        **Note: If using this outside of RadVel's nested sampling module, make sure to call `check_proper_priors` first!**
+
+        Args:
+            u (np.ndarray): Array of uniform values between 0 and 1 for each parameter
+
+        Returns:
+            Array of parameter values derived
+        """
         x = np.array(u)
-        # NOTE: This assumes that each parameter has only one prior.
-        # check_proper_priors() or an assertion somewhere in prior_transform() would fix this for small performance hit
-        # Order 20-50 microsecond cost... Probably worth running at least some check systematically, if no NS wrapper?
         vary_param_names = self.name_vary_params()
         prior_dict = self.get_prior_dict()
         for ind, pname in enumerate(vary_param_names):
-            prior = prior_dict[pname]
-            if not prior.extra_constraint:
-                x[ind] = prior.transform(u[ind])
+            prior_list = prior_dict[pname]
+            for prior in prior_list:
+                if not prior.extra_constraint:
+                    x[ind] = prior.transform(u[ind])
+                    break
         return x
 
     def extra_likelihood(self):
+        """Computes "extra constraint" priors to add them to the likelihood
+        This runs internally to add priors such as PositiveK as likelihood constraint
+        for nested sampling.
+        Called by Posterior.likelihood_ns_array and Posterior.extra_likelihood_array.
+
+        Returns:
+            float for the extra priors' contribution to the likelihood
+        """
         _logprob = 0
         for prior in self.priors:
             if prior.extra_constraint:
                 _logprob += prior(self.params, self.vector)
         return _logprob
 
+    def extra_likelihood_array(self, param_values_array):
+        """Calls Posterior.extra_likelihood with a vector of parameter values.
+
+        Args:
+            param_values_array (np.ndarray): Array of parameter values
+
+        Returns:
+            float for the extra priors' contribution to the likelihood
+        """
+        self.likelihood.set_vary_params(param_values_array)
+        return self.extra_likelihood()
+
     def likelihood_ns_array(self, param_values_array):
+        """Likelihood of the model, with 'extra prior' constraints applied.
+
+        This is basically a combined call to `self.likelihood.logprob()` and `self.extra_likelihood()`.
+
+        Args:
+            param_values_array (np.ndarray): Array of parameter values
+
+        Returns:
+            Log probability of the likelihood + extra priors
+        """
         self.likelihood.set_vary_params(param_values_array)
         extra_likelihood = self.extra_likelihood()
         if np.isfinite(extra_likelihood):
