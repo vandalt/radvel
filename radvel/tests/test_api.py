@@ -325,11 +325,12 @@ def test_prior_transforms(params_and_vector_for_priors):
         ).transform(u)
 
     # Make sure other priors raise error for transform
+    # TODO: Test numerical prior transform, now that it is implemented
     no_transform_priors = [
         radvel.prior.EccentricityPrior(1),
         radvel.prior.PositiveKPrior(1),
         radvel.prior.SecondaryEclipsePrior(1, 5.0, 10.0),
-        radvel.prior.NumericalPrior(['sesinw1'], np.random.randn(1,5000000)),
+        # radvel.prior.NumericalPrior(['sesinw1'], np.random.randn(1,5000000)),
         radvel.prior.InformativeBaselinePrior('per1', 5.0, duration=1.0),
     ]
     for prior in no_transform_priors:
