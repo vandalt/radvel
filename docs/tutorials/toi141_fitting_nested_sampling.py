@@ -92,33 +92,7 @@ plt.plot(t_mod - T_OFF, post.model(t_mod))
 plt.show()
 
 # %%
-from typing import Optional, Union
-import dynesty
-
-def run_ns(
-    post: radvel.posterior.Posterior,
-    sampler_type: str = "static",
-    sampler_kwargs: Optional[dict] = None,
-    run_kwargs: Optional[dict] = None,
-) -> Union[dynesty.NestedSampler, dynesty.DynamicNestedSampler]:
-    run_kwargs = run_kwargs or {}
-    sampler_kwargs = sampler_kwargs or {}
-    post.check_proper_priors()
-    # TODO: Support dynamic
-    if sampler_type == "static":
-        sampler = dynesty.NestedSampler(
-            post.likelihood.logprob_array, post.prior_transform, len(post.priors), **sampler_kwargs
-        )
-    elif sampler_type == "dynamic":
-        sampler = dynesty.DynamicNestedSampler(post.likelihood.logprob_array, post.prior_transform, len(post.priors), **sampler_kwargs)
-    else:
-        raise ValueError("sampler must be 'static' or 'dynamic'")
-    sampler.run_nested(**run_kwargs)
-    return sampler
-
-# %%
-sampler = run_ns(post, sampler_kwargs={"nlive": 300})
-sampler_single = sampler
+sampler_single = radvel.nested_sampling(post)
 
 # %%
 from dynesty import plotting as dyplot
