@@ -381,7 +381,7 @@ def test_prior_transform_all_params(likelihood_for_pt):
     post.priors += [radvel.prior.ModifiedJeffreys( 'jit', 0, 10.0, -0.1)]
     post.priors += [radvel.prior.Gaussian( 'logk1', np.log(5), 5)]
     post.priors += [radvel.prior.Gaussian( 'logk1', 8, 5)]
-    with pytest.raises(ValueError, match="Multiple priors"):
+    with pytest.raises(ValueError, match="Multiple prior transforms"):
         post.check_proper_priors()
 
 
