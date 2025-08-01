@@ -3,30 +3,27 @@ import os
 import sys
 from glob import glob
 
+import pytest
 import nbformat
 from nbconvert.preprocessors import ExecutePreprocessor
 
-warnings.simplefilter('ignore')
+warnings.simplefilter("ignore")
 
 
-def test_notebooks(nbdir='docs/tutorials/'):
+@pytest.mark.parametrize(
+    "nbfile", sorted(glob(os.path.join("docs/tutorials/", "*.ipynb")))
+)
+def test_notebook(nbfile):
     """
-    Run though notebook tutorials
+    Run though a single notebook tutorial
     """
+    print(nbfile)
+    with open(nbfile) as f:
+        nb = nbformat.read(f, as_version=4)
 
-    nbfiles = sorted(glob(os.path.join(nbdir, '*.ipynb')))
-    for nbfile in nbfiles:
-        print(nbfile)
-        with open(nbfile) as f:
-            nb = nbformat.read(f, as_version=4)
+    if sys.version_info[0] < 3:
+        ep = ExecutePreprocessor(timeout=900, kernel_name="python2")
+    else:
+        ep = ExecutePreprocessor(timeout=900, kernel_name="python3")
 
-        if sys.version_info[0] < 3:
-            ep = ExecutePreprocessor(timeout=900, kernel_name='python2')
-        else:
-            ep = ExecutePreprocessor(timeout=900, kernel_name='python3')
-
-        ep.preprocess(nb, {'metadata': {'path': nbdir}})
-
-
-if __name__ == '__main__':
-    test_notebooks()
+    ep.preprocess(nb, {"metadata": {"path": os.path.dirname(nbfile)}})
