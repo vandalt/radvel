@@ -4,6 +4,8 @@ import dill as pickle
 import radvel
 from radvel.gp import CeleriteKernel
 
+import nautilus
+
 class Posterior(Likelihood):
     """Posterior object
     Posterior object to be sent to the fitting routines.
@@ -104,7 +106,7 @@ class Posterior(Likelihood):
                     )
 
 
-    def prior_transform(self, u):
+    def prior_transform(self, u, inplace=False):
         """Prior transform for all model parameters
         Takes an array of uniform values between 0 and 1 and converts them to parametre values
         through each parameter's prior transform.
@@ -117,7 +119,10 @@ class Posterior(Likelihood):
         Returns:
             Array of parameter values derived
         """
-        x = np.array(u)
+        if inplace:
+            x = u
+        else:
+            x = np.array(u)
         vary_param_names = self.name_vary_params()
         prior_dict = self.get_prior_dict()
         for ind, pname in enumerate(vary_param_names):
@@ -126,6 +131,7 @@ class Posterior(Likelihood):
                 if not prior.extra_constraint:
                     x[ind] = prior.transform(u[ind])
                     break
+
         return x
 
     def extra_likelihood(self):
