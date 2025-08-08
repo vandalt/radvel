@@ -77,6 +77,8 @@ def run_multinest(
         tmp = True
         overwrite = True
 
+    resume = run_kwargs.get("resume", True)
+
     outdir = os.path.dirname(outname)
     os.makedirs(outdir, exist_ok=overwrite or resume)
 
