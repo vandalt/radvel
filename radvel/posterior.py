@@ -4,8 +4,6 @@ import dill as pickle
 import radvel
 from radvel.gp import CeleriteKernel
 
-import nautilus
-
 class Posterior(Likelihood):
     """Posterior object
     Posterior object to be sent to the fitting routines.
