@@ -1,8 +1,10 @@
+import os
+import shutil
 from typing import Optional
 
-import os
-from dynesty import NestedSampler, DynamicNestedSampler
+# TODO: Make libraries optional
 import pymultinest
+from dynesty import DynamicNestedSampler, NestedSampler
 from nautilus import Sampler
 from ultranest import ReactiveNestedSampler
 
@@ -70,12 +72,13 @@ def run_multinest(
         outname = run_kwargs["outputfiles_basename"]
         tmp = False
     else:
-        outname = "tmpdir/"
+        outname = "tmpdir/out"
         run_kwargs["outputfiles_basename"] = outname
         tmp = True
         overwrite = True
 
-    os.makedirs(run_kwargs["outputfiles_basename"], exist_ok=overwrite)
+    outdir = os.path.dirname(outname)
+    os.makedirs(outdir, exist_ok=overwrite or resume)
 
     def loglike(p, ndim, nparams):
         # This is required to avoid segfault
@@ -98,7 +101,7 @@ def run_multinest(
     results["lnZerr"] = a.get_stats()["global evidence error"]
 
     if tmp:
-        os.rmdir(outname)
+        shutil.rmtree(outname)
 
     return results
 
