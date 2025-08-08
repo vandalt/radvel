@@ -1,4 +1,6 @@
 # %%
+import time
+
 import radvel
 import numpy as np
 from pandas import read_csv
@@ -7,6 +9,9 @@ from radvel import nested_sampling as rns
 
 import matplotlib.pyplot as plt
 
+# %%
+# Set to True when to avoid re-running samplers
+RESUME = False
 
 # %%
 def initialize_model(num_planets):
@@ -50,6 +55,7 @@ def initialize_model(num_planets):
 
     return post
 
+# %%
 path = os.path.join(radvel.DATADIR,'epic203771098.csv')
 rv = read_csv(path)
 
@@ -81,23 +87,55 @@ plot_results(post.likelihood)
 plt.show()
 
 # %%
-multinest_results = rns.run_multinest(post)
+multinest_start = time.time()
+multinest_results = rns.run_multinest(post, run_kwargs={"outputfiles_basename": "mutlinest_demo/out", "resume": RESUME})
+multinest_time = time.time() - multinest_start
+print(f"Running multinest took {multinest_time / 60:.2f} min")
 
 # %%
-dynesty_sampler = dynesty_results = rns.run_dynesty(post)
+dynesty_start = time.time()
+dynesty_sampler = dynesty_results = rns.run_dynesty(post, run_kwargs={"checkpoint_file": "dynesty_demo/dynesty.save", "resume": RESUME})
+dynesty_time = time.time() - dynesty_start
+print(f"Running dynesty took {dynesty_time / 60:.2f} min")
 
 # %%
-dynesty_dynamic_sampler = dynesty_results = rns.run_dynesty(post, sampler_type="dynamic")
+dynesty_start = time.time()
+dynesty_dynamic_sampler = dynesty_results = rns.run_dynesty(post, sampler_type="dynamic", run_kwargs={"checkpoint_file": "dynesty_demo/dynesty_dynamic.save", "resume": RESUME})
+dynesty_time = time.time() - dynesty_start
+print(f"Running dynesty took {dynesty_time / 60:.2f} min")
 
 # %%
-ultranest_sampler = rns.run_ultranest(post)
+ultranest_start = time.time()
+ultranest_sampler = rns.run_ultranest(post, sampler_kwargs={"log_dir": "ultranest_demo", "resume": RESUME})
+ultranest_time = time.time() - ultranest_start
+print(f"Running ultranest took {ultranest_time / 60:.2f} min")
 
 # %%
-nautilus_sampler = rns.run_nautilus(post, run_kwargs={"verbose": True})
+nautilus_start = time.time()
+nautilus_sampler = rns.run_nautilus(post, sampler_kwargs={"filepath": "nautilus_demo/output.hdf5", "resume": RESUME}, run_kwargs={"verbose": True})
+nautilus_time = time.time() - nautilus_start
+print(f"Running nautilus took {nautilus_time / 60:.2f} min")
 
 # %%
-print(f"Multinest: {multinest_results['lnZ']} +/- {multinest_results['lnZerr']}")
-print(f"Dynesty (static): {dynesty_sampler.results['logz'][-1]} +/- {dynesty_sampler.results['logzerr'][-1]}")
-print(f"Dynesty (dynamic): {dynesty_dynamic_sampler.results['logz'][-1]} +/- {dynesty_dynamic_sampler.results['logzerr'][-1]}")
-print(f"Ultranest: {ultranest_sampler.results['logz']} +/- {ultranest_sampler.results['logzerr']}")
-print(f"Nautilus: {nautilus_sampler.log_z} +/- {nautilus_sampler.n_eff**-0.5}")
+print(f"Multinest: {multinest_results['lnZ']:.2f} +/- {multinest_results['lnZerr']:.2f}")
+print(f"Dynesty (static): {dynesty_sampler.results['logz'][-1]:.2f} +/- {dynesty_sampler.results['logzerr'][-1]:.2f}")
+print(f"Dynesty (dynamic): {dynesty_dynamic_sampler.results['logz'][-1]:.2f} +/- {dynesty_dynamic_sampler.results['logzerr'][-1]:.2f}")
+print(f"Ultranest: {ultranest_sampler.results['logz']:.2f} +/- {ultranest_sampler.results['logzerr']:.2f}")
+print(f"Nautilus: {nautilus_sampler.log_z:.2f} +/- {nautilus_sampler.n_eff**-0.5:.2f}")
+
+# %%
+import corner
+
+points, log_w, log_l = nautilus_sampler.posterior()
+hist_kwargs = {"density": True}
+fig = corner.corner(points[::10], weights=np.exp(log_w[::10]), labels=post.name_vary_params(),range=np.repeat(0.999, len(post.name_vary_params())), plot_datapoints=False, hist_kwargs=hist_kwargs)
+
+corner.corner(multinest_results["samples"][:, :-1], color="b", fig=fig, hist_kwargs=hist_kwargs | {"color": "b"})
+
+corner.corner(dynesty_sampler.results.samples_equal(), color="r", fig=fig, hist_kwargs=hist_kwargs | {"color": "r"},range=np.repeat(0.999, len(post.name_vary_params())))
+
+corner.corner(dynesty_dynamic_sampler.results.samples_equal(), color="yellow", fig=fig, hist_kwargs=hist_kwargs | {"color": "yellow"},range=np.repeat(0.999, len(post.name_vary_params())))
+
+corner.corner(ultranest_sampler.results["samples"], color="peachpuff", fig=fig, hist_kwargs=hist_kwargs | {"color": "peachpuff"}, range=np.repeat(0.999, len(post.name_vary_params())))
+
+plt.show()

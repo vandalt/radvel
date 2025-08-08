@@ -23,21 +23,32 @@ def run_dynesty(
     post.check_proper_priors()
 
     if sampler_type == "static":
-        sampler = NestedSampler
+        sampler_class = NestedSampler
     elif sampler_type == "dynamic":
-        sampler = DynamicNestedSampler
+        sampler_class = DynamicNestedSampler
     else:
         raise ValueError(
             f"Expected 'dynamic' or 'static' as sampler_type. Got {sampler_type}"
         )
 
-    sampler = sampler(
-        post.likelihood_ns_array,
-        post.prior_transform,
-        len(post.name_vary_params()),
-        **sampler_kwargs,
-    )
+    resume = run_kwargs.get("resume", False)
+    output_file = run_kwargs.get("checkpoint_file", None)
+
+    if resume and output_file is not None and os.path.exists(output_file):
+        sampler = sampler_class.restore(output_file)
+    else:
+        sampler = sampler_class(
+            post.likelihood_ns_array,
+            post.prior_transform,
+            len(post.name_vary_params()),
+            **sampler_kwargs,
+        )
+    if output_file is not None and not os.path.exists(output_file):
+        outdir = os.path.dirname(output_file)
+        os.makedirs(outdir)
     sampler.run_nested(**run_kwargs)
+    if output_file:
+        sampler.save(output_file)
 
     return sampler
 
@@ -103,7 +114,7 @@ def run_multinest(
     results["lnZerr"] = a.get_stats()["global evidence error"]
 
     if tmp:
-        shutil.rmtree(outname)
+        shutil.rmtree(outdir)
 
     return results
 
