@@ -3,6 +3,7 @@ from typing import Optional
 import os
 from dynesty import NestedSampler, DynamicNestedSampler
 import pymultinest
+from nautilus import Sampler
 from ultranest import ReactiveNestedSampler
 
 from radvel.posterior import Posterior
@@ -102,8 +103,20 @@ def run_multinest(
     return results
 
 
-def run_nautilus():
-    raise NotImplementedError("Nautilus support not yet implemented")
+def run_nautilus(
+    post: Posterior,
+    sampler_kwargs: Optional[dict] = None,
+    run_kwargs: Optional[dict] = None,
+) -> Sampler:
+    sampler_kwargs = sampler_kwargs or {}
+    run_kwargs = run_kwargs or {}
+
+    ndim = len(post.name_vary_params())
+    sampler = Sampler(
+        post.prior_transform, post.likelihood_ns_array, n_dim=ndim, **sampler_kwargs
+    )
+    sampler.run(**run_kwargs)
+    return sampler
 
 
 BACKENDS = {

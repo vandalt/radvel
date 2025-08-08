@@ -93,7 +93,11 @@ dynesty_dynamic_sampler = dynesty_results = rns.run_dynesty(post, sampler_type="
 ultranest_sampler = rns.run_ultranest(post)
 
 # %%
+nautilus_sampler = rns.run_nautilus(post, run_kwargs={"verbose": True})
+
+# %%
 print(f"Multinest: {multinest_results['lnZ']} +/- {multinest_results['lnZerr']}")
 print(f"Dynesty (static): {dynesty_sampler.results['logz'][-1]} +/- {dynesty_sampler.results['logzerr'][-1]}")
 print(f"Dynesty (dynamic): {dynesty_dynamic_sampler.results['logz'][-1]} +/- {dynesty_dynamic_sampler.results['logzerr'][-1]}")
 print(f"Ultranest: {ultranest_sampler.results['logz']} +/- {ultranest_sampler.results['logzerr']}")
+print(f"Nautilus: {nautilus_sampler.log_z} +/- {nautilus_sampler.n_eff**-0.5}")
