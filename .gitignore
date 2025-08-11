@@ -10,3 +10,4 @@ radvel.egg-info/
 radvel/_kepler*
 src/_kepler.c
 Dockerfile
+*_demo
