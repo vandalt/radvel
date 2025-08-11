@@ -2,12 +2,6 @@ import os
 import shutil
 from typing import Optional
 
-# TODO: Make libraries optional
-import pymultinest
-from dynesty import DynamicNestedSampler, NestedSampler
-from nautilus import Sampler
-from ultranest import ReactiveNestedSampler
-
 from radvel.posterior import Posterior
 
 
@@ -16,7 +10,9 @@ def run_dynesty(
     sampler_type: str = "static",
     sampler_kwargs: Optional[dict] = None,
     run_kwargs: Optional[dict] = None,
-) -> NestedSampler | DynamicNestedSampler:
+) -> dict:
+    from dynesty import DynamicNestedSampler, NestedSampler
+
     run_kwargs = run_kwargs or {}
     sampler_kwargs = sampler_kwargs or {}
 
@@ -65,7 +61,9 @@ def run_ultranest(
     post: Posterior,
     sampler_kwargs: Optional[dict] = None,
     run_kwargs: Optional[dict] = None,
-) -> ReactiveNestedSampler:
+) -> dict:
+    from ultranest import ReactiveNestedSampler
+
     run_kwargs = run_kwargs or {}
     sampler_kwargs = sampler_kwargs or {}
 
@@ -91,6 +89,8 @@ def run_ultranest(
 def run_multinest(
     post: Posterior, overwrite: bool = False, run_kwargs: Optional[dict] = None
 ) -> dict:
+    import pymultinest
+
     run_kwargs = run_kwargs or {}
 
     if "outputfiles_basename" in run_kwargs:
@@ -137,7 +137,9 @@ def run_nautilus(
     post: Posterior,
     sampler_kwargs: Optional[dict] = None,
     run_kwargs: Optional[dict] = None,
-) -> Sampler:
+) -> dict:
+    from nautilus import Sampler
+
     sampler_kwargs = sampler_kwargs or {}
     run_kwargs = run_kwargs or {}
 
