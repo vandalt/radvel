@@ -123,14 +123,14 @@ def run_ultranest(
     """
     from ultranest import ReactiveNestedSampler
 
+    run_kwargs = run_kwargs or {}
+    sampler_kwargs = sampler_kwargs or {}
+
     if "log_dir" in sampler_kwargs:
         raise ValueError(
             "log_dir not supported for ultranest. Use radvel's output_dir instead."
         )
     sampler_kwargs["log_dir"] = output_dir
-
-    run_kwargs = run_kwargs or {}
-    sampler_kwargs = sampler_kwargs or {}
 
     sampler = ReactiveNestedSampler(
         post.name_vary_params(),
@@ -251,15 +251,15 @@ def run_nautilus(
     """
     from nautilus import Sampler
 
+    sampler_kwargs = sampler_kwargs or {}
+    run_kwargs = run_kwargs or {}
+
     if "filepath" in sampler_kwargs:
         raise ValueError(
             "filepath not supported for nautilus. Use radvel's output_dir instead."
         )
     if output_dir is not None:
         sampler_kwargs["filepath"] = os.path.join(output_dir, "nautilus_output.hdf5")
-
-    sampler_kwargs = sampler_kwargs or {}
-    run_kwargs = run_kwargs or {}
 
     ndim = len(post.name_vary_params())
     sampler = Sampler(
@@ -347,7 +347,7 @@ def run(
             raise TypeError("Argument sampler_kwargs is invalid for sampler 'multinest', only run_kwargs is supported")
         results = run_multinest(post, output_dir=output_dir, overwrite=overwrite, run_kwargs=run_kwargs)
     elif sampler == "nautilus":
-        results = run_nautilus(post, output_dir=output_dir, sampler_kwarg=sampler_kwargs, run_kwargs=run_kwargs)
+        results = run_nautilus(post, output_dir=output_dir, sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
     else:
         raise ValueError(f"Unknown sampler '{sampler}'. Available options are {list(BACKENDS.keys())}")
     # fmt: on
