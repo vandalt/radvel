@@ -216,7 +216,7 @@ plt.show()
 from radvel import nested_sampling
 
 start = time.time()
-radvel_results = nested_sampling.run_multinest(post, run_kwargs={"n_live_points": 300, "outputfiles_basename": "toi141_radvel/out"})
+radvel_results = nested_sampling.run(post, sampler="multinest", run_kwargs={"n_live_points": 300, "outputfiles_basename": "toi141_radvel/out"})
 radvel_time = time.time() - start
 print(f"Radvel took {radvel_time:.2f} sec")
 
@@ -230,7 +230,7 @@ juliet_samples = np.empty((len(juliet_samples_dict["P_p1"]), n_params))
 for i, radvel_name in enumerate(post.name_vary_params()):
     juliet_name = params_map[radvel_name]
     juliet_samples[:, i] = juliet_samples_dict[juliet_name]
-radvel_samples = radvel_results["samples"][:, :-1]
+radvel_samples = radvel_results["samples"]
 fig = corner.corner(radvel_samples, labels=post.name_vary_params())
 corner.corner(juliet_samples, fig=fig, color="b")
 plt.show()

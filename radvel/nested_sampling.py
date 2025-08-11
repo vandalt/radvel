@@ -20,8 +20,6 @@ def run_dynesty(
     run_kwargs = run_kwargs or {}
     sampler_kwargs = sampler_kwargs or {}
 
-    post.check_proper_priors()
-
     if sampler_type == "static":
         sampler_class = NestedSampler
     elif sampler_type == "dynamic":
@@ -70,7 +68,6 @@ def run_ultranest(
 ) -> ReactiveNestedSampler:
     run_kwargs = run_kwargs or {}
     sampler_kwargs = sampler_kwargs or {}
-    post.check_proper_priors()
 
     sampler = ReactiveNestedSampler(
         post.name_vary_params(),
@@ -165,3 +162,41 @@ BACKENDS = {
     "ultranest": run_ultranest,
     "nautilus": run_nautilus,
 }
+
+
+def run(
+    post: Posterior,
+    output_directory: Optional[str] = None,
+    overwrite: bool = False,
+    sampler: str = "ultranest",
+    run_kwargs: Optional[dict] = None,
+    sampler_kwargs: Optional[dict] = None,
+) -> dict:
+    post.check_proper_priors()
+
+    if output_directory is not None:
+        # TODO: Handle output and overwrite stuff here
+        pass
+
+    sampler = sampler.lower()
+    if sampler == "pymultinest":
+        sampler = "multinest"
+
+    # fmt: off
+    if sampler == "ultranest":
+        results = run_ultranest(post, sampler_kwarg=sampler_kwargs, run_kwargs=run_kwargs)
+    elif sampler == "dynesty-static":
+        results = run_dynesty(post, sampler_type="static", sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
+    elif sampler == "dynesty-dynamic":
+        results = run_dynesty(post, sampler_type="dynamic", sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
+    elif sampler == "multinest":
+        if sampler_kwargs is not None:
+            raise TypeError("Argument sampler_kwargs is invalid for sampler 'multinest', only run_kwargs is supported")
+        results = run_multinest(post, overwrite=overwrite, run_kwargs=run_kwargs)
+    elif sampler == "nautilus":
+        results = run_nautilus(post, sampler_kwarg=sampler_kwargs, run_kwargs=run_kwargs)
+    else:
+        raise ValueError(f"Unknown sampler '{sampler}'. Available options are {list(BACKENDS.keys())}")
+    # fmt: on
+
+    return results
