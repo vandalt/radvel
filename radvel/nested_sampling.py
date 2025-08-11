@@ -43,6 +43,9 @@ def run_dynesty(
             len(post.name_vary_params()),
             **sampler_kwargs,
         )
+        if resume and output_file is not None and not os.path.exists(output_file):
+            run_kwargs["resume"] = False
+
     if output_file is not None and not os.path.exists(output_file):
         outdir = os.path.dirname(output_file)
         os.makedirs(outdir)
@@ -50,7 +53,14 @@ def run_dynesty(
     if output_file:
         sampler.save(output_file)
 
-    return sampler
+    results = {
+        "samples": sampler.results.samples_equal(),
+        "lnZ": sampler.results["logz"][-1],
+        "lnZerr": sampler.results["logzerr"][-1],
+        "sampler": sampler,
+    }
+
+    return results
 
 
 def run_ultranest(
@@ -71,7 +81,14 @@ def run_ultranest(
 
     sampler.run(**run_kwargs)
 
-    return sampler
+    results = {
+        "samples": sampler.results["samples"],
+        "lnZ": sampler.results["logz"],
+        "lnZerr": sampler.results["logzerr"],
+        "sampler": sampler,
+    }
+
+    return results
 
 
 def run_multinest(
@@ -109,7 +126,7 @@ def run_multinest(
     a = pymultinest.Analyzer(outputfiles_basename=outname, n_params=ndim)
 
     results = {}
-    results["samples"] = a.get_equal_weighted_posterior()
+    results["samples"] = a.get_equal_weighted_posterior()[:, :-1]
     results["lnZ"] = a.get_stats()["global evidence"]
     results["lnZerr"] = a.get_stats()["global evidence error"]
 
@@ -132,7 +149,13 @@ def run_nautilus(
         post.prior_transform, post.likelihood_ns_array, n_dim=ndim, **sampler_kwargs
     )
     sampler.run(**run_kwargs)
-    return sampler
+    results = {
+        "samples": sampler.posterior(equal_weight=True)[0],
+        "lnZ": sampler.log_z,
+        "lnZerr": sampler.n_eff**-0.5,
+        "sampler": sampler,
+    }
+    return results
 
 
 BACKENDS = {
