@@ -15,6 +15,7 @@ API
    prior
    fitting
    mcmc
+   nested_sampling
    driver
    utils
    report	      

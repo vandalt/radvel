@@ -32,13 +32,13 @@ installation steps. See :ref:`OSX-multiprocessing`.
 If you wish to use the celerite GP kernels you will also need to install celerite.
 See the `celerite install instructions <http://celerite.readthedocs.io/en/stable/python/install/#using-pip>`_.
 
-To use nested sampling packages other than the default [UltraNest](https://johannesbuchner.github.io/UltraNest/index.html) sampler, you will also need to install them. Other samplers implemented in Radvel are:
+To use nested sampling packages other than the default `UltraNest <https://johannesbuchner.github.io/UltraNest/index.html>`_ sampler, you will also need to install them. Other samplers implemented in Radvel are:
 
-- [dynesty](https://dynesty.readthedocs.io/)
-- [PyMultiNest](https://github.com/JohannesBuchner/PyMultiNest/)
-- [Nautilus](https://nautilus-sampler.readthedocs.io/)
+- `dynesty <https://dynesty.readthedocs.io/>`_
+- `PyMultiNest <https://github.com/JohannesBuchner/PyMultiNest/>`_
+- `Nautilus <https://nautilus-sampler.readthedocs.io/>`_
 
-See `Available Nested Samplers <./tutorials/k2_24_demo_all_samplers.ipynb>` for more details.
+See `Available Nested Samplers <./tutorials/k2_24_demo_all_samplers.ipynb>`_ for more details.
 
 
 Example Fit
