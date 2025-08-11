@@ -8,31 +8,31 @@ import numpy as np
 from radvel.posterior import Posterior
 
 
-def run_dynesty(
+def _run_dynesty(
     post: Posterior,
     output_dir: Optional[str] = None,
     sampler_type: str = "static",
     sampler_kwargs: Optional[dict] = None,
     run_kwargs: Optional[dict] = None,
 ) -> dict:
-    """Run nested sampling with Dynesty
-    Dynesty docs: https://dynesty.readthedocs.io/en/v2.1.5/api.html
+    """Run nested sampling with `Dynesty <https://dynesty.readthedocs.io/>`_
+
     Args:
         post: radvel posterior object
         output_dir: Output directory where the sampler checkpoints and results will be stored. Nothing is stored by default.
-            **Note**: This replaces the sampler's built-in "checkpoint_file" argument. A `dynesty.save` file is created automatically.
+            **Note**: This replaces the sampler's built-in "checkpoint_file" argument. A ``dynesty.save`` file is created automatically.
             When sampling is finished, the final state of the sampler is stored.
         sampler_kwargs: Dictionary of keyword arguments passed to the 'sampler' object from the underlying nested sampling package at initialization.
-            See each package's documentation to learn more on the available arguments. This is not available for `sampler='multinest'`.
-            Defaults to `None`.
+            See each package's documentation to learn more on the available arguments. This is not available for ``sampler='multinest'``.
+            Defaults to ``None``.
         run_kwargs: Dictionary of keyword arguments passed to the 'run' methods from the underlying nested sampling package.
             See each package's documentation to learn more on the available aruments.
     Returns:
         Dictionary of results with the following keys:
-            - `samples`: Samples dictionary with shape `(nsamples, nparams)`
-            - `lnZ`: Log of the Bayesian evidence
-            - `lnZ`: Statistical uncertainty on the evidence
-            - `sampler`: Sampler object used by the nested sampling library. Provides more fine-grained access to the results.
+            - ``samples``: Samples dictionary with shape ``(nsamples, nparams)``
+            - ``lnZ``: Log of the Bayesian evidence
+            - ``lnZ``: Statistical uncertainty on the evidence
+            - ``sampler``: Sampler object used by the nested sampling library. Provides more fine-grained access to the results.
 
     """
     from dynesty import DynamicNestedSampler, NestedSampler
@@ -96,30 +96,30 @@ def run_dynesty(
     return results
 
 
-def run_ultranest(
+def _run_ultranest(
     post: Posterior,
     output_dir: Optional[str] = None,
     sampler_kwargs: Optional[dict] = None,
     run_kwargs: Optional[dict] = None,
 ) -> dict:
-    """Run nested sampling with Ultranest
-    Ultranest docs: https://johannesbuchner.github.io/UltraNest/ultranest.html#ultranest.integrator.ReactiveNestedSampler
+    """Run nested sampling with `Ultranest <https://johannesbuchner.github.io/UltraNest/ultranest.html#ultranest.integrator.ReactiveNestedSampler>`_
+
     Args:
         post: radvel posterior object
         output_dir: Output directory where the sampler checkpoints and results will be stored. Nothing is stored by default.
             **Note**: This replaces the sampler's built-in "log_dir" argument.
-            The ultranest `log_dir` is automatically set to `output_dir`.
+            The ultranest ``log_dir`` is automatically set to ``output_dir``.
         sampler_kwargs: Dictionary of keyword arguments passed to the 'sampler' object from the underlying nested sampling package at initialization.
-            See each package's documentation to learn more on the available arguments. This is not available for `sampler='multinest'`.
-            Defaults to `None`.
+            See each package's documentation to learn more on the available arguments.
+            Defaults to ``None``.
         run_kwargs: Dictionary of keyword arguments passed to the 'run' methods from the underlying nested sampling package.
             See each package's documentation to learn more on the available aruments.
     Returns:
         Dictionary of results with the following keys:
-            - `samples`: Samples dictionary with shape `(nsamples, nparams)`
-            - `lnZ`: Log of the Bayesian evidence
-            - `lnZ`: Statistical uncertainty on the evidence
-            - `sampler`: Sampler object used by the nested sampling library. Provides more fine-grained access to the results.
+            - ``samples``: Samples dictionary with shape ``(nsamples, nparams)``
+            - ``lnZ``: Log of the Bayesian evidence
+            - ``lnZ``: Statistical uncertainty on the evidence
+            - ``sampler``: Sampler object used by the nested sampling library. Provides more fine-grained access to the results.
     """
     from ultranest import ReactiveNestedSampler
 
@@ -151,27 +151,27 @@ def run_ultranest(
     return results
 
 
-def run_multinest(
+def _run_multinest(
     post: Posterior,
     output_dir: Optional[str] = None,
     overwrite: bool = False,
     run_kwargs: Optional[dict] = None,
 ) -> dict:
-    """Run nested sampling with PyMultiNest
-    PyMultiNest docs: https://johannesbuchner.github.io/PyMultiNest/pymultinest.html#
+    """Run nested sampling with `PyMultiNest <https://johannesbuchner.github.io/PyMultiNest/pymultinest.html#>`_
+
     Args:
         post: radvel posterior object
         output_dir: Output directory where the sampler checkpoints and results will be stored. Nothing is stored by default.
             **Note**: This replaces the sampler's built-in "outputfiles_basename" argument.
-            If `output_dir` is specified, sets `outputfiles_basename` to `<output_dir>/out`
-        overwrite: Overwrite the output files if they exist. Defaults to `False`.
+            If ``output_dir`` is specified, sets ``outputfiles_basename`` to ``<output_dir>/out``
+        overwrite: Overwrite the output files if they exist. Defaults to ``False``.
         run_kwargs: Dictionary of keyword arguments passed to the 'run' methods from the underlying nested sampling package.
             See each package's documentation to learn more on the available aruments.
     Returns:
         Dictionary of results with the following keys:
-            - `samples`: Samples dictionary with shape `(nsamples, nparams)`
-            - `lnZ`: Log of the Bayesian evidence
-            - `lnZ`: Statistical uncertainty on the evidence
+            - ``samples``: Samples dictionary with shape ``(nsamples, nparams)``
+            - ``lnZ``: Log of the Bayesian evidence
+            - ``lnZ``: Statistical uncertainty on the evidence
     """
     import pymultinest
 
@@ -197,12 +197,21 @@ def run_multinest(
     os.makedirs(output_dir, exist_ok=tmp or overwrite or resume)
 
     def loglike(p, ndim, nparams):
+        """Log-likelihood for multinest
+        Must support ndim and nparams arguments
+        and create a list-copy of the object to avoid segfault.
+        """
         # This is required to avoid segfault
         # See here: https://github.com/JohannesBuchner/PyMultiNest/issues/41, which I semi-understand
         p = [p[i] for i in range(ndim)]
         return post.likelihood_ns_array(p)
 
     def prior_transform(u, ndim, nparams):
+        """Prior transform for multinest
+
+        Multinest requires the prior transform to handle ndim, nparams arguments
+        and to modify the array in-place
+        """
         post.prior_transform(u, inplace=True)
 
     ndim = len(post.name_vary_params())
@@ -224,30 +233,30 @@ def run_multinest(
     return results
 
 
-def run_nautilus(
+def _run_nautilus(
     post: Posterior,
     output_dir: Optional[str] = None,
     sampler_kwargs: Optional[dict] = None,
     run_kwargs: Optional[dict] = None,
 ) -> dict:
-    """Run nested sampling with Nautilus
-    Nautilus docs: https://nautilus-sampler.readthedocs.io/en/latest/api_high.html
+    """Run nested sampling with `Nautilus <https://nautilus-sampler.readthedocs.io/en/latest/api_high.html>`_
+
     Args:
         post: radvel posterior object
         output_dir: Output directory where the sampler checkpoints and results will be stored. Nothing is stored by default.
             **Note**: This replaces the sampler's built-in "filepath argument.
-            The nautilus output is automatically stored in `nautilus_output.hdf5` under that location.
+            The nautilus output is automatically stored in ``nautilus_output.hdf5`` under that location.
         sampler_kwargs: Dictionary of keyword arguments passed to the 'sampler' object from the underlying nested sampling package at initialization.
-            See each package's documentation to learn more on the available arguments. This is not available for `sampler='multinest'`.
-            Defaults to `None`.
+            See each package's documentation to learn more on the available arguments.
+            Defaults to ``None``.
         run_kwargs: Dictionary of keyword arguments passed to the 'run' methods from the underlying nested sampling package.
             See each package's documentation to learn more on the available aruments.
     Returns:
         Dictionary of results with the following keys:
-            - `samples`: Samples dictionary with shape `(nsamples, nparams)`
-            - `lnZ`: Log of the Bayesian evidence
-            - `lnZ`: Statistical uncertainty on the evidence
-            - `sampler`: Sampler object used by the nested sampling library. Provides more fine-grained access to the results.
+            - ``samples``: Samples dictionary with shape ``(nsamples, nparams)``
+            - ``lnZ``: Log of the Bayesian evidence
+            - ``lnZ``: Statistical uncertainty on the evidence
+            - ``sampler``: Sampler object used by the nested sampling library. Provides more fine-grained access to the results.
     """
     from nautilus import Sampler
 
@@ -276,11 +285,11 @@ def run_nautilus(
 
 
 BACKENDS = {
-    "dynesty-static": run_dynesty,
-    "dynesty-dynamic": run_dynesty,
-    "multinest": run_multinest,
-    "ultranest": run_ultranest,
-    "nautilus": run_nautilus,
+    "dynesty-static": _run_dynesty,
+    "dynesty-dynamic": _run_dynesty,
+    "multinest": _run_multinest,
+    "ultranest": _run_ultranest,
+    "nautilus": _run_nautilus,
 }
 
 
@@ -293,34 +302,37 @@ def run(
     run_kwargs: Optional[dict] = None,
 ) -> dict:
     """Run nested sampling
+
     Args:
         post: radvel posterior object
         output_dir: Output directory where the sampler checkpoints and results will be stored.
             Nothing is stored by default.
             **Note**: This replaces the sampler's built-in "checkpoint_file", "log_dir", or "outputfiles_basename" argument.
             Once you specify output there, everything is saved there automatically.
-            A `results.hdf5` file will also be saved with the results dict, except for the sampler.
+            A ``results.hdf5`` file will also be saved with the results dict, except for the sampler.
         overwrite: Overwrite the results.hdf5 if True. This is not used for checkpoint files from the sampler as
-            they can be used to resume a run. Defaults to `False`.
+            they can be used to resume a run. Defaults to ``False``.
         sampler: name of the sampler to use. Should be one of 'ultranest', 'dynesty-static', 'dynesty-dynamic', 'nautilus', or 'multinest'.
             Defaults to 'ultranest'.
         sampler_kwargs: Dictionary of keyword arguments passed to the 'sampler' object from the underlying nested sampling package at initialization.
-            See each package's documentation to learn more on the available arguments. This is not available for `sampler='multinest'`.
-            Defaults to `None`.
+            See each package's documentation to learn more on the available arguments. This is not available for ``sampler='multinest'``.
+            Defaults to ``None``.
         run_kwargs: Dictionary of keyword arguments passed to the 'run' methods from the underlying nested sampling package.
             See each package's documentation to learn more on the available aruments.
     Returns:
-        Dictionary of results with the following keys:
-            - `samples`: Samples dictionary with shape `(nsamples, nparams)`
-            - `lnZ`: Log of the Bayesian evidence
-            - `lnZ`: Statistical uncertainty on the evidence
-            - `sampler`: Sampler object used by the nested sampling library. Provides more fine-grained access to the results.
+        Dictionary of results with the keys below.
+
+        - ``samples``: Samples dictionary with shape ``(nsamples, nparams)``
+        - ``lnZ``: Log of the Bayesian evidence
+        - ``lnZ``: Statistical uncertainty on the evidence
+        - ``sampler``: Sampler object used by the nested sampling library. Provides more fine-grained access to the results.
 
     Link to each package's API documentation:
-    - Ultranest: https://johannesbuchner.github.io/UltraNest/ultranest.html#ultranest.integrator.ReactiveNestedSampler
-    - Nautilus: https://nautilus-sampler.readthedocs.io/en/latest/api_high.html
-    - Dynesty: https://dynesty.readthedocs.io/en/v2.1.5/api.html
-    - PyMultiNest: https://johannesbuchner.github.io/PyMultiNest/pymultinest.html#
+
+    - `Ultranest <https://johannesbuchner.github.io/UltraNest/ultranest.html#ultranest.integrator.ReactiveNestedSampler>`_
+    - `Nautilus <https://nautilus-sampler.readthedocs.io/en/latest/api_high.html>`_
+    - `Dynesty <https://dynesty.readthedocs.io>`_
+    - `PyMultiNest <https://johannesbuchner.github.io/PyMultiNest/pymultinest.html#>`_
     """
     post.check_proper_priors()
 
@@ -337,7 +349,7 @@ def run(
 
     # fmt: off
     if sampler == "ultranest":
-        results = run_ultranest(post, output_dir=output_dir, sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
+        results = _run_ultranest(post, output_dir=output_dir, sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
     elif sampler == "dynesty-static":
         results = run_dynesty(post, sampler_type="static", output_dir=output_dir, sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
     elif sampler == "dynesty-dynamic":
@@ -345,9 +357,9 @@ def run(
     elif sampler == "multinest":
         if sampler_kwargs is not None:
             raise TypeError("Argument sampler_kwargs is invalid for sampler 'multinest', only run_kwargs is supported")
-        results = run_multinest(post, output_dir=output_dir, overwrite=overwrite, run_kwargs=run_kwargs)
+        results = _run_multinest(post, output_dir=output_dir, overwrite=overwrite, run_kwargs=run_kwargs)
     elif sampler == "nautilus":
-        results = run_nautilus(post, output_dir=output_dir, sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
+        results = _run_nautilus(post, output_dir=output_dir, sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
     else:
         raise ValueError(f"Unknown sampler '{sampler}'. Available options are {list(BACKENDS.keys())}")
     # fmt: on
@@ -364,11 +376,12 @@ def run(
 
 def load_results(results_file: str) -> dict:
     """Load nested sampling results dictionary
+
     Args:
         results_file: Path to hdf5 file containing the results.
     Returns:
         Dictionary with nested sampling results.
-        Note that the `sampler` key is not saved, so it is not in the dictionary returned by this function.
+        Note that the ``sampler`` key is not saved, so it is not in the dictionary returned by this function.
     """
     results = {}
     with h5py.File(results_file) as h5f:
