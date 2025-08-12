@@ -4,6 +4,8 @@ from typing import Optional
 
 import h5py
 import numpy as np
+from pandas import DataFrame, read_hdf
+
 
 from radvel.posterior import Posterior
 
@@ -29,7 +31,7 @@ def _run_dynesty(
             See each package's documentation to learn more on the available aruments.
     Returns:
         Dictionary of results with the following keys:
-            - ``samples``: Samples dictionary with shape ``(nsamples, nparams)``
+            - ``samples``: Samples array with shape ``(nsamples, nparams)``
             - ``lnZ``: Log of the Bayesian evidence
             - ``lnZ``: Statistical uncertainty on the evidence
             - ``sampler``: Sampler object used by the nested sampling library. Provides more fine-grained access to the results.
@@ -116,7 +118,7 @@ def _run_ultranest(
             See each package's documentation to learn more on the available aruments.
     Returns:
         Dictionary of results with the following keys:
-            - ``samples``: Samples dictionary with shape ``(nsamples, nparams)``
+            - ``samples``: Samples array with shape ``(nsamples, nparams)``
             - ``lnZ``: Log of the Bayesian evidence
             - ``lnZ``: Statistical uncertainty on the evidence
             - ``sampler``: Sampler object used by the nested sampling library. Provides more fine-grained access to the results.
@@ -169,7 +171,7 @@ def _run_multinest(
             See each package's documentation to learn more on the available aruments.
     Returns:
         Dictionary of results with the following keys:
-            - ``samples``: Samples dictionary with shape ``(nsamples, nparams)``
+            - ``samples``: Samples array with shape ``(nsamples, nparams)``
             - ``lnZ``: Log of the Bayesian evidence
             - ``lnZ``: Statistical uncertainty on the evidence
     """
@@ -253,7 +255,7 @@ def _run_nautilus(
             See each package's documentation to learn more on the available aruments.
     Returns:
         Dictionary of results with the following keys:
-            - ``samples``: Samples dictionary with shape ``(nsamples, nparams)``
+            - ``samples``: Samples array with shape ``(nsamples, nparams)``
             - ``lnZ``: Log of the Bayesian evidence
             - ``lnZ``: Statistical uncertainty on the evidence
             - ``sampler``: Sampler object used by the nested sampling library. Provides more fine-grained access to the results.
@@ -322,7 +324,7 @@ def run(
     Returns:
         Dictionary of results with the keys below.
 
-        - ``samples``: Samples dictionary with shape ``(nsamples, nparams)``
+        - ``samples``: Samples dataframe with one column per parameters and lnprobability for each set.
         - ``lnZ``: Log of the Bayesian evidence
         - ``lnZ``: Statistical uncertainty on the evidence
         - ``sampler``: Sampler object used by the nested sampling library. Provides more fine-grained access to the results.
@@ -351,9 +353,9 @@ def run(
     if sampler == "ultranest":
         results = _run_ultranest(post, output_dir=output_dir, sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
     elif sampler == "dynesty-static":
-        results = run_dynesty(post, sampler_type="static", output_dir=output_dir, sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
+        results = _run_dynesty(post, sampler_type="static", output_dir=output_dir, sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
     elif sampler == "dynesty-dynamic":
-        results = run_dynesty(post, sampler_type="dynamic", output_dir=output_dir, sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
+        results = _run_dynesty(post, sampler_type="dynamic", output_dir=output_dir, sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
     elif sampler == "multinest":
         if sampler_kwargs is not None:
             raise TypeError("Argument sampler_kwargs is invalid for sampler 'multinest', only run_kwargs is supported")
@@ -363,13 +365,24 @@ def run(
     else:
         raise ValueError(f"Unknown sampler '{sampler}'. Available options are {list(BACKENDS.keys())}")
     # fmt: on
+    
+    # TODO: Update chains description in docs
+    df = DataFrame(results["samples"], columns=post.name_vary_params())
+    lnprob_arr = np.empty(len(df))
+    for i, row in df.iterrows():
+        lnprob_arr[i] = post.logprob_array(row.values)
+    df["lnprobability"] = lnprob_arr
+
+
+    results["samples"] = df
 
     if output_dir is not None:
         with h5py.File(results_file, mode="w") as h5f:
             for key, val in results.items():
-                if key == "sampler":
+                if key == "sampler" or key == "samples":
                     continue
                 h5f.create_dataset(key, data=val)
+        results["samples"].to_hdf(results_file, key="samples", mode="a")
 
     return results
 
@@ -385,7 +398,7 @@ def load_results(results_file: str) -> dict:
     """
     results = {}
     with h5py.File(results_file) as h5f:
-        results["samples"] = np.array(h5f["samples"])
         results["lnZ"] = np.array(h5f["lnZ"]).item()
         results["lnZerr"] = np.array(h5f["lnZerr"]).item()
+    results["samples"] = read_hdf(results_file, key="samples")
     return results

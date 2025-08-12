@@ -230,7 +230,7 @@ juliet_samples = np.empty((len(juliet_samples_dict["P_p1"]), n_params))
 for i, radvel_name in enumerate(post.name_vary_params()):
     juliet_name = params_map[radvel_name]
     juliet_samples[:, i] = juliet_samples_dict[juliet_name]
-radvel_samples = radvel_results["samples"]
+radvel_samples = radvel_results["samples"][:, :-1]
 fig = corner.corner(radvel_samples, labels=post.name_vary_params())
 corner.corner(juliet_samples, fig=fig, color="b")
 plt.show()
