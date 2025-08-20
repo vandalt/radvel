@@ -102,6 +102,16 @@ You may want to use the '--gp' flag when making these plots.")
             Auto = mcmc_plots.AutoPlot(autocorr, saveplot=saveto)
             Auto.plot()
 
+        if ptype == 'corner-ns':
+            assert status.getboolean('ns', 'run'), \
+                "Must run nested sampling before making corner-ns plot"
+
+            chains_ns = pd.read_csv(status.get('ns', 'chainfile'))
+
+            saveto = os.path.join(args.outputdir, conf_base+'_corner_ns.pdf')
+            Corner = mcmc_plots.CornerPlot(post, chains_ns, saveplot=saveto)
+            Corner.plot()
+
         if ptype == 'corner':
             saveto = os.path.join(args.outputdir, conf_base+'_corner.pdf')
             Corner = mcmc_plots.CornerPlot(post, chains, saveplot=saveto)
@@ -205,62 +215,7 @@ def mcmc(args):
     minafactor = statevars.minafactor
     maxarchange = statevars.maxarchange
 
-    # Convert chains into synth basis
-    synthchains = chains.copy()
-    for par in post.params.keys():
-        if not post.vector.vector[post.vector.indices[par]][1]:
-            synthchains[par] = post.vector.vector[post.vector.indices[par]][0]
-
-    synthchains = post.params.basis.to_synth(synthchains)
-    synth_quantile = synthchains.quantile([0.159, 0.5, 0.841])
-
-    # Get quantiles and update posterior object to median
-    # values returned by MCMC chains
-    post_summary = chains.quantile([0.159, 0.5, 0.841])
-
-    for k in chains.columns:
-        if k in post.params.keys():
-            post.vector.vector[post.vector.indices[k]][0] = post_summary[k][0.5]
-
-    post.vector.vector_to_dict()
-
-    print("Performing post-MCMC maximum likelihood fit...")
-    post = radvel.fitting.maxlike_fitting(post, verbose=False)
-
-    final_logprob = post.logprob()
-    final_residuals = post.likelihood.residuals().std()
-    final_chisq = np.sum(post.likelihood.residuals()**2 / (post.likelihood.errorbars()**2))
-    deg_of_freedom = len(post.likelihood.y) - len(post.likelihood.get_vary_params())
-    final_chisq_reduced = final_chisq / deg_of_freedom
-    post.vector.vector_to_dict()
-    synthparams = post.params.basis.to_synth(post.params)
-
-    print("Calculating uncertainties...")
-    post.uparams = {}
-    post.medparams = {}
-    post.maxparams = {}
-    for par in synthparams.keys():
-        maxlike = synthparams[par].value
-        med = synth_quantile[par][0.5]
-        high = synth_quantile[par][0.841] - med
-        low = med - synth_quantile[par][0.159]
-        err = np.mean([high, low])
-        if maxlike == -np.inf and med == -np.inf and np.isnan(low) and np.isnan(high):
-            err = 0.0
-        else:
-            err = radvel.utils.round_sig(err)
-        if err > 0.0:
-            med, err, errhigh = radvel.utils.sigfig(med, err)
-            maxlike, err, errhigh = radvel.utils.sigfig(maxlike, err)
-        post.uparams[par] = err
-        post.medparams[par] = med
-        post.maxparams[par] = maxlike
-
-    print("Final loglikelihood = %f" % final_logprob)
-    print("Final RMS = %f" % final_residuals)
-    print("Final reduced chi-square = {}".format(final_chisq_reduced))
-    print("Best-fit parameters:")
-    print(post)
+    post, post_summary, chains = sampling_postprocessing(post, chains)
 
     print("Saving output files...")
     saveto = os.path.join(args.outputdir, conf_base+'_post_summary.csv')
@@ -299,6 +254,156 @@ def mcmc(args):
     save_status(statfile, 'mcmc', savestate)
 
     statevars.reset()
+
+
+def sampling_postprocessing(post, chains):
+    # Convert chains into synth basis
+    synthchains = chains.copy()
+    for par in post.params.keys():
+        if not post.vector.vector[post.vector.indices[par]][1]:
+            synthchains[par] = post.vector.vector[post.vector.indices[par]][0]
+
+    synthchains = post.params.basis.to_synth(synthchains)
+    synth_quantile = synthchains.quantile([0.159, 0.5, 0.841])
+
+    # Get quantiles and update posterior object to median
+    # values returned by MCMC chains
+    post_summary = chains.quantile([0.159, 0.5, 0.841])
+
+    for k in chains.columns:
+        if k in post.params.keys():
+            post.vector.vector[post.vector.indices[k]][0] = post_summary[k][0.5]
+
+    post.vector.vector_to_dict()
+
+    print("Performing post-sampling maximum likelihood fit...")
+    post = radvel.fitting.maxlike_fitting(post, verbose=False)
+
+    final_logprob = post.logprob()
+    final_residuals = post.likelihood.residuals().std()
+    final_chisq = np.sum(post.likelihood.residuals()**2 / (post.likelihood.errorbars()**2))
+    deg_of_freedom = len(post.likelihood.y) - len(post.likelihood.get_vary_params())
+    final_chisq_reduced = final_chisq / deg_of_freedom
+    post.vector.vector_to_dict()
+    synthparams = post.params.basis.to_synth(post.params)
+
+    print("Calculating uncertainties...")
+    post.uparams = {}
+    post.medparams = {}
+    post.maxparams = {}
+    for par in synthparams.keys():
+        maxlike = synthparams[par].value
+        med = synth_quantile[par][0.5]
+        high = synth_quantile[par][0.841] - med
+        low = med - synth_quantile[par][0.159]
+        err = np.mean([high, low])
+        if maxlike == -np.inf and med == -np.inf and np.isnan(low) and np.isnan(high):
+            err = 0.0
+        else:
+            err = radvel.utils.round_sig(err)
+        if err > 0.0:
+            med, err, errhigh = radvel.utils.sigfig(med, err)
+            maxlike, err, errhigh = radvel.utils.sigfig(maxlike, err)
+        post.uparams[par] = err
+        post.medparams[par] = med
+        post.maxparams[par] = maxlike
+
+    print("Final loglikelihood = %f" % final_logprob)
+    print("Final RMS = %f" % final_residuals)
+    print("Final reduced chi-square = {}".format(final_chisq_reduced))
+    print("Best-fit parameters:")
+    print(post)
+
+    return post, post_summary, chains
+
+
+def _cast_str_arg(arg):
+    try:
+        return int(arg)
+    except ValueError:
+        pass
+    try:
+        return float(arg)
+    except ValueError:
+        pass
+
+    if arg.lower() == "true":
+        return True
+    elif arg.lower() == "false":
+        return False
+    else:
+        return arg
+
+def _process_kwargs_str(kwargs_str):
+    if kwargs_str is None:
+        return {}
+
+    kwargs_dict = {}
+    pairs_str = kwargs_str.split(" ")
+    for pair in pairs_str:
+        key, value = pair.split("=")
+        kwargs_dict[key] = _cast_str_arg(value)
+    return kwargs_dict
+
+
+def nested_sampling(args):
+    """Perform nested sampling
+
+    Args:
+        args (ArgumentParser): command line arguments
+    """
+    config_file = args.setupfn
+    conf_base = os.path.basename(config_file).split('.')[0]
+    statfile = os.path.join(args.outputdir,
+                            "{}_radvel.stat".format(conf_base))
+
+    run_kwargs = _process_kwargs_str(args.run_kwargs)
+    resume = run_kwargs.get("resume", False)
+    sampler_kwargs = _process_kwargs_str(args.sampler_kwargs)
+
+    if args.save or resume:
+        backend_loc = os.path.join(args.outputdir, conf_base+'_ns')
+    else:
+        backend_loc = None
+
+    status = load_status(statfile)
+    P, post = radvel.utils.initialize_posterior(config_file,
+                                                decorr=args.decorr)
+
+    print(f'Running nested sampling backend {args.sampler}')
+
+    results = radvel.nested_sampling.run(
+        post,
+        output_dir=backend_loc,
+        overwrite=args.overwrite,
+        sampler=args.sampler,
+        run_kwargs=run_kwargs,
+        sampler_kwargs=sampler_kwargs
+    )
+    chains = results["samples"]
+
+    post, post_summary, chains = sampling_postprocessing(post, chains)
+
+    print("Saving output files...")
+    saveto = os.path.join(args.outputdir, conf_base+'_post_summary_ns.csv')
+    post_summary.to_csv(saveto, sep=',')
+
+    postfile = os.path.join(args.outputdir,
+                            '{}_post_obj_ns.pkl'.format(conf_base))
+    post.writeto(postfile)
+
+    csvfn = os.path.join(args.outputdir, conf_base+'_chains_ns.csv.bz2')
+    chains.to_csv(csvfn, compression='bz2')
+
+    output_path = args.outputdir if args.outputdir is None else os.path.relpath(args.outputdir)
+    savestate = {'run': True,
+                 'postfile': os.path.relpath(postfile),
+                 'chainfile': os.path.relpath(csvfn),
+                 'ns_outdir': output_path,
+                 'summaryfile': os.path.relpath(saveto),
+                 }
+    savestate = savestate | sampler_kwargs | run_kwargs
+    save_status(statfile, 'ns', savestate)
 
 
 def ic_compare(args):

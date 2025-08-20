@@ -5,6 +5,7 @@ import os
 from argparse import ArgumentParser
 
 import radvel.driver
+from radvel.nested_sampling import BACKENDS
 
 
 def main():
@@ -48,7 +49,7 @@ def main():
     psr_plot = subpsr.add_parser('plot', parents=[psr_parent],)
     psr_plot.add_argument('-t', '--type',
                           type=str, nargs='+',
-                          choices=['rv', 'auto', 'corner', 'trend', 'derived'],
+                          choices=['rv', 'auto', 'corner', 'trend', 'derived', 'corner-ns'],
                           help="type of plot(s) to generate"
                           )
     psr_plot.add_argument('--plotkw', dest='plotkw', action='store', default="{}", type=eval,
@@ -118,7 +119,38 @@ Convergence checks will start after the minsteps threshold or the minpercent thr
                           )
     psr_mcmc.set_defaults(func=radvel.driver.mcmc)
 
+    # Nested Sampling
+    psr_ns = subpsr.add_parser('ns', parents=[psr_parent], description='Perform nested ampling')
+    psr_ns.add_argument(
+        '--sampler',
+        default='ultranest',
+        help='Nested sampling package to use',
+        choices=list(BACKENDS.keys())
+    )
+    psr_ns.add_argument(
+        '--save',
+        action='store_true',
+        help='Save full nested sampling run. Add `resume=True` to run-kwargs to continue.',
+    )
+    psr_ns.add_argument(
+        '--overwrite',
+        action='store_true',
+        help='Overwrite nested sampling output if present.',
+    )
+    psr_ns.add_argument(
+        '--sampler-kwargs',
+        default=None,
+        help='Dictionary of keyword argument for the "sampler" object. Passed as a space-separated list of key=value pairs.'
+    )
+    psr_ns.add_argument(
+        '--run-kwargs',
+        default=None,
+        help='Dictionary of keyword argument for the nested sampling "run" method. Passed as a space-separated list of key=value pairs.'
+    )
+    psr_ns.set_defaults(func=radvel.driver.nested_sampling)
+
     # Derive physical parameters
+    # TODO: Support later steps with NS instead of MCMC
     psr_physical = subpsr.add_parser('derive', parents=[psr_parent],
                                      description="Multiply MCMC chains by physical parameters. MCMC must"
                                      + "be run first"
