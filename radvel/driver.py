@@ -48,7 +48,7 @@ def plots(args):
                                                 decorr=args.decorr)
 
     assert status.getboolean('fit', 'run'), \
-        "Must perform max-liklihood fit before plotting"
+        "Must perform max-likelihood fit before plotting"
     post = radvel.posterior.load(status.get('fit', 'postfile'))
 
     for ptype in args.type:
@@ -483,16 +483,28 @@ def tables(args):
                             "{}_radvel.stat".format(conf_base))
     status = load_status(statfile)
 
-    assert status.getboolean('mcmc', 'run'), \
-        "Must run MCMC before making tables"
-
     P, post = radvel.utils.initialize_posterior(config_file)
-    post = radvel.posterior.load(status.get('fit', 'postfile'))
-    chains = pd.read_csv(status.get('mcmc', 'chainfile'))
-    minafactor = status.get('mcmc', 'minafactor')
-    maxarchange = status.get('mcmc', 'maxarchange')
-    maxgr = status.get('mcmc', 'maxgr')
-    mintz = status.get('mcmc', 'mintz')
+
+    sampler_type = _pick_sampler(args, status)
+    if sampler_type == 'mcmc':
+        chains = pd.read_csv(status.get('mcmc', 'chainfile'))
+        minafactor = status.get('mcmc', 'minafactor')
+        maxarchange = status.get('mcmc', 'maxarchange')
+        maxgr = status.get('mcmc', 'maxgr')
+        mintz = status.get('mcmc', 'mintz')
+        post = radvel.posterior.load(status.get('fit', 'postfile'))
+    elif sampler_type == 'ns':
+        chains = pd.read_csv(status.get('ns', 'chainfile'))
+        minafactor = maxarchange = maxgr = mintz = None
+        post = radvel.posterior.load(status.get('ns', 'postfile'))
+
+    else:
+        raise ValueError(
+            "Got an unexpected sampler_type {}. Please report this error on GitHub".format(
+                sampler_type
+            )
+        )
+
     if 'derive' in status.sections() and status.getboolean('derive', 'run'):
         dchains = pd.read_csv(status.get('derive', 'chainfile'))
         chains = chains.join(dchains, rsuffix='_derived')
@@ -538,6 +550,32 @@ def tables(args):
         save_status(statfile, 'table', savestate)
 
 
+def _pick_sampler(args, status):
+    has_mcmc = status.has_section('mcmc') and status.getboolean('mcmc', 'run')
+    has_ns = status.has_section('ns') and status.getboolean('ns', 'run')
+    assert has_mcmc or has_ns, "Must run MCMC or nested sampling before making tables or deriving parameters"
+
+    if args.sampler == 'auto':
+        if has_mcmc:
+            sampler_type = 'mcmc'
+        elif has_ns:
+            sampler_type = 'ns'
+        else:
+            raise ValueError('No sampling results found. Run MCMC or nested sampling first')
+    elif args.sampler == 'mcmc':
+        if not has_mcmc:
+            raise ValueError('No MCMC results found. Run MCMC or use NS results with --sampler=ns')
+        sampler_type = 'mcmc'
+    elif args.sampler == 'ns':
+        if not has_ns:
+            raise ValueError('No NS results found. Run NS or use MCMC results with --sampler=mcmc')
+        sampler_type = 'ns'
+    else:
+        raise ValueError('Invalid sampler {}. Must be one of "auto", "mcmc" or "ns"'.format(args.sampler))
+
+    return sampler_type
+
+
 def derive(args):
     """Derive physical parameters from posterior samples
 
@@ -551,16 +589,16 @@ def derive(args):
                             "{}_radvel.stat".format(conf_base))
     status = load_status(statfile)
 
-    msg = "Multiplying mcmc chains by physical parameters for {}".format(
+    msg = "Multiplying mcmc or nested sampling chains by physical parameters for {}".format(
         conf_base
     )
     print(msg)
 
-    assert status.getboolean('mcmc', 'run'), "Must run MCMC before making tables"
+    sampler_type = _pick_sampler(args, status)
 
     P, post = radvel.utils.initialize_posterior(config_file)
     post = radvel.posterior.load(status.get('fit', 'postfile'))
-    chains = pd.read_csv(status.get('mcmc', 'chainfile'))
+    chains = pd.read_csv(status.get(sampler_type, 'chainfile'))
 
     try:
         mstar = np.random.normal(
@@ -678,13 +716,28 @@ def report(args):
     if 'ic_compare' in status.keys():
         status['ic_compare']['ic'] = status['ic_compare']['ic'].replace('-inf', '-np.inf')
 
+    sampler_type = _pick_sampler(args, status)
+
     P, post = radvel.utils.initialize_posterior(config_file)
-    post = radvel.posterior.load(status.get('fit', 'postfile'))
-    chains = pd.read_csv(status.get('mcmc', 'chainfile'))
-    minafactor = status.get('mcmc', 'minafactor')
-    maxarchange = status.get('mcmc', 'maxarchange')
-    maxgr = status.get('mcmc', 'maxgr')
-    mintz = status.get('mcmc', 'mintz')
+
+    if sampler_type == 'mcmc':
+        chains = pd.read_csv(status.get('mcmc', 'chainfile'))
+        minafactor = status.get('mcmc', 'minafactor')
+        maxarchange = status.get('mcmc', 'maxarchange')
+        maxgr = status.get('mcmc', 'maxgr')
+        mintz = status.get('mcmc', 'mintz')
+
+        post = radvel.posterior.load(status.get('fit', 'postfile'))
+    elif sampler_type == 'ns':
+        chains = pd.read_csv(status.get('ns', 'chainfile'))
+        minafactor = maxarchange = maxgr = mintz = None
+        post = radvel.posterior.load(status.get('ns', 'postfile'))
+    else:
+        raise ValueError(
+            "Got an unexpected sampler_type {}. Please report this error on GitHub".format(
+                sampler_type
+            )
+        )
     if 'derive' in status.sections() and status.getboolean('derive', 'run'):
         dchains = pd.read_csv(status.get('derive', 'chainfile'))
         chains = chains.join(dchains, rsuffix='_derived')

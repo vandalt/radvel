@@ -150,12 +150,16 @@ Convergence checks will start after the minsteps threshold or the minpercent thr
     psr_ns.set_defaults(func=radvel.driver.nested_sampling)
 
     # Derive physical parameters
-    # TODO: Support later steps with NS instead of MCMC
     psr_physical = subpsr.add_parser('derive', parents=[psr_parent],
-                                     description="Multiply MCMC chains by physical parameters. MCMC must"
+                                     description="Multiply MCMC or NS chains by physical parameters. MCMC must"
                                      + "be run first"
                                      )
-
+    psr_physical.add_argument(
+        '--sampler',
+        default='auto',
+        choices=['mcmc', 'ns', 'auto'],
+        help='Sampling results to use in the derived parameters. By default, will try MCMC first and nested sampling if no MCMC is found.'
+    )
     psr_physical.set_defaults(func=radvel.driver.derive)
 
     # Information Criteria comparison (BIC/AIC)
@@ -200,6 +204,8 @@ Convergence checks will start after the minsteps threshold or the minpercent thr
                            help='''Include star name in table headers. Default just prints \
 descriptive titles without star name [False]'''
                            )
+    psr_table.add_argument('--sampler', default='auto', choices=['mcmc', 'ns', 'auto'],
+                              help='Sampling results to use in the derived parameters. By default, will try MCMC first and nested sampling if no MCMC is found.')
 
     psr_table.set_defaults(func=radvel.driver.tables)
 
@@ -211,6 +217,8 @@ descriptive titles without star name [False]'''
                             help='Type of model comparison table to include. Default: ic')
 
     psr_report.add_argument('--latex-compiler', default='pdflatex', type=str, help='Path to latex compiler')
+    psr_report.add_argument('--sampler', default='auto', choices=['mcmc', 'ns', 'auto'],
+                              help='Sampling results to use in the derived parameters. By default, will try MCMC first and nested sampling if no MCMC is found.')
 
     psr_report.set_defaults(func=radvel.driver.report)
 
