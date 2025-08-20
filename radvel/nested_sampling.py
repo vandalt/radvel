@@ -106,6 +106,11 @@ def _run_ultranest(
 ) -> dict:
     """Run nested sampling with `Ultranest <https://johannesbuchner.github.io/UltraNest/ultranest.html#ultranest.integrator.ReactiveNestedSampler>`_
 
+    The SliceSampler will be used automatically for more than 7 parameters.
+    See `the Ultranest docs <https://johannesbuchner.github.io/UltraNest/example-sine-highd.html#Step-samplers-in-UltraNest>`_ for more information
+
+    Parameters starting with ``tc`` or ``tp`` are assumed to by time of conjunction or time of periastron and are marked as ``wrapped_params`` automatically.
+
     Args:
         post: radvel posterior object
         output_dir: Output directory where the sampler checkpoints and results will be stored. Nothing is stored by default.
@@ -124,6 +129,7 @@ def _run_ultranest(
             - ``sampler``: Sampler object used by the nested sampling library. Provides more fine-grained access to the results.
     """
     from ultranest import ReactiveNestedSampler
+    from ultranest.stepsampler import SliceSampler, generate_mixture_random_direction
 
     run_kwargs = run_kwargs or {}
     sampler_kwargs = sampler_kwargs or {}
@@ -134,12 +140,22 @@ def _run_ultranest(
         )
     sampler_kwargs["log_dir"] = output_dir
 
+    param_names = post.name_vary_params()
+    wrapped_params = [pn.startswith(("tc", "tp")) for pn in param_names]
     sampler = ReactiveNestedSampler(
-        post.name_vary_params(),
+        param_names,
         post.likelihood_ns_array,
         post.prior_transform,
+        wrapped_params=wrapped_params,
         **sampler_kwargs,
     )
+
+    num_params = len(param_names)
+    if num_params > 7:
+        nsteps = len(param_names) * 2
+        sampler.stepsampler = SliceSampler(
+            nsteps=nsteps, generate_direction=generate_mixture_random_direction,
+        )
 
     sampler.run(**run_kwargs)
 
@@ -264,6 +280,7 @@ def _run_nautilus(
 
     sampler_kwargs = sampler_kwargs or {}
     run_kwargs = run_kwargs or {}
+    run_kwargs.setdefault("verbose", True)
 
     if "filepath" in sampler_kwargs:
         raise ValueError(
@@ -357,7 +374,7 @@ def run(
     elif sampler == "dynesty-dynamic":
         results = _run_dynesty(post, sampler_type="dynamic", output_dir=output_dir, sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
     elif sampler == "multinest":
-        if sampler_kwargs is not None:
+        if sampler_kwargs is not None and len(sampler_kwargs) > 0:
             raise TypeError("Argument sampler_kwargs is invalid for sampler 'multinest', only run_kwargs is supported")
         results = _run_multinest(post, output_dir=output_dir, overwrite=overwrite, run_kwargs=run_kwargs)
     elif sampler == "nautilus":
