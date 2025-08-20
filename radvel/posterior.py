@@ -144,7 +144,7 @@ class Posterior(Likelihood):
         _logprob = 0
         for prior in self.priors:
             if prior.extra_constraint:
-                _logprob += prior(self.params, self.vector)
+                _logprob += prior(self.params, self.vector, finite=True)
         return _logprob
 
     def extra_likelihood_array(self, param_values_array):

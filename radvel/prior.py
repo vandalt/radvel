@@ -112,7 +112,7 @@ class EccentricityPrior(Prior):
 upper limits must match number of planets."
             self.upperlims = upperlims
 
-    def __call__(self, params, vector):
+    def __call__(self, params, vector, finite=False):
         def _getpar(key, num_planet):
             return vector.vector[vector.indices['{}{}'.format(key, num_planet)]][0]
 
@@ -134,7 +134,7 @@ upper limits must match number of planets."
                 ecc = secc**2
 
             if ecc > self.upperlims[i] or ecc < 0.0:
-                return -np.inf
+                return -np.inf if not finite else -1e100
 
         return -np.sum(np.log(self.upperlims))
 
@@ -169,7 +169,7 @@ class PositiveKPrior(Prior):
     def __init__(self, num_planets):
         self.num_planets = num_planets
 
-    def __call__(self, params, vector):
+    def __call__(self, params, vector, finite=False):
         def _getpar(key, num_planet):
             return vector.vector[vector.indices['{}{}'.format(key, num_planet)]][0]
 
@@ -180,7 +180,7 @@ class PositiveKPrior(Prior):
                 k = np.exp(_getpar('logk', num_planet))
 
             if k < 0.0:
-                return -np.inf
+                return -np.inf if not finite else -1e100
         return 0
 
     def transform(self, u):
