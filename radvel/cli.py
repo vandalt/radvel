@@ -49,7 +49,7 @@ def main():
     psr_plot = subpsr.add_parser('plot', parents=[psr_parent],)
     psr_plot.add_argument('-t', '--type',
                           type=str, nargs='+',
-                          choices=['rv', 'auto', 'corner', 'trend', 'derived', 'corner-ns'],
+                          choices=['rv', 'auto', 'corner', 'trend', 'derived'],
                           help="type of plot(s) to generate"
                           )
     psr_plot.add_argument('--plotkw', dest='plotkw', action='store', default="{}", type=eval,
@@ -61,6 +61,12 @@ E.g. --plotkw "{'yscale_auto': True}"' ''')
                           default=False,
                           help="Make a multipanel plot with GP bands. For use only with GPLikleihood objects"
                           )
+    psr_plot.add_argument(
+        '--sampler',
+        default='auto',
+        choices=['mcmc', 'ns', 'auto'],
+        help='Sampling results to use in the plots. By default, will try MCMC first and nested sampling if no MCMC is found.'
+    )
 
     psr_plot.set_defaults(func=radvel.driver.plots)
 
@@ -205,7 +211,7 @@ Convergence checks will start after the minsteps threshold or the minpercent thr
 descriptive titles without star name [False]'''
                            )
     psr_table.add_argument('--sampler', default='auto', choices=['mcmc', 'ns', 'auto'],
-                              help='Sampling results to use in the derived parameters. By default, will try MCMC first and nested sampling if no MCMC is found.')
+                              help='Sampling results to use in the tables. By default, will try MCMC first and nested sampling if no MCMC is found.')
 
     psr_table.set_defaults(func=radvel.driver.tables)
 
@@ -218,7 +224,7 @@ descriptive titles without star name [False]'''
 
     psr_report.add_argument('--latex-compiler', default='pdflatex', type=str, help='Path to latex compiler')
     psr_report.add_argument('--sampler', default='auto', choices=['mcmc', 'ns', 'auto'],
-                              help='Sampling results to use in the derived parameters. By default, will try MCMC first and nested sampling if no MCMC is found.')
+                              help='Sampling results to use in the report. By default, will try MCMC first and nested sampling if no MCMC is found.')
 
     psr_report.set_defaults(func=radvel.driver.report)
 

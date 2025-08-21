@@ -91,26 +91,21 @@ You may want to use the '--gp' flag when making these plots.")
                         break
 
         if ptype == 'corner' or ptype == 'auto' or ptype == 'trend':
-            assert status.getboolean('mcmc', 'run'), \
-                "Must run MCMC before making corner, auto, or trend plots"
+            sampler_type = _pick_sampler(args, status)
+            if ptype == 'corner':
+                assert status.getboolean(sampler_type, 'run'), \
+                    "Must run MCMC or nested sampling before making corner plot"
+            else:
+                assert status.getboolean('mcmc', 'run'), \
+                    "Must run MCMC before making auto or trend plots"
+                autocorr = pd.read_csv(status.get(sampler_type, 'autocorrfile'))
 
-            chains = pd.read_csv(status.get('mcmc', 'chainfile'))
-            autocorr = pd.read_csv(status.get('mcmc', 'autocorrfile'))
+            chains = pd.read_csv(status.get(sampler_type, 'chainfile'))
 
         if ptype == 'auto':
             saveto = os.path.join(args.outputdir, conf_base+'_auto.pdf')
             Auto = mcmc_plots.AutoPlot(autocorr, saveplot=saveto)
             Auto.plot()
-
-        if ptype == 'corner-ns':
-            assert status.getboolean('ns', 'run'), \
-                "Must run nested sampling before making corner-ns plot"
-
-            chains_ns = pd.read_csv(status.get('ns', 'chainfile'))
-
-            saveto = os.path.join(args.outputdir, conf_base+'_corner_ns.pdf')
-            Corner = mcmc_plots.CornerPlot(post, chains_ns, saveplot=saveto)
-            Corner.plot()
 
         if ptype == 'corner':
             saveto = os.path.join(args.outputdir, conf_base+'_corner.pdf')
