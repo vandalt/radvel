@@ -58,7 +58,7 @@ First lets look at ``radvel --help`` for the available options:
 .. code-block:: bash
 		
     $ radvel --help
-    usage: RadVel [-h] [--version] {fit,plot,mcmc,derive,bic,table,report} ...
+    usage: RadVel [-h] [--version] {fit,plot,mcmc,ns,derive,bic,table,report} ...
 
     RadVel: The Radial Velocity Toolkit
 
@@ -67,7 +67,7 @@ First lets look at ``radvel --help`` for the available options:
       --version             Print version number and exit.
 
     subcommands:
-      {fit,plot,mcmc,derive,bic,table,report}
+      {fit,plot,mcmc,ns,derive,bic,table,report}
 
 
 Here is an example workflow to
@@ -105,6 +105,12 @@ This should produce a plot named
 Next lets perform the Markov-Chain Monte Carlo (MCMC) exploration to
 assess parameter uncertainties.
 
+Next, we can sample the posterior distribution to assess parameter uncertainties.
+RadVel can do this either with Markov Chain Monte Carlo (MCMC) or
+nested sampling (NS).
+
+MCMC is available with the `mcmc` subcommand.
+
 .. code-block:: bash
 
     $ radvel mcmc -s /path/to/radvel/example_planets/HD164922.py
@@ -114,8 +120,27 @@ called `HD164922_mcmc_chains.csv.tar.bz2`. This is a compressed csv
 file containing the parameter values and likelihood at each step in
 the MCMC chains.
 
-Now we can update the RV time series plot with the MCMC
-results and generate the full suite of plots.
+Nested sampling is available through the `ns` subcommand.
+
+.. code-block:: bash
+
+    $ radvel ns -s /path/to/radvel/example_planets/HD164922.py
+
+See ``radvel ns --help`` for a full list of available options.
+After nested sampling has run, the *equal weight* (equivalent to MCMC)
+chains from nested sampling are stored in ``HD164922_chains_ns.csv.bz2``.
+All subsequent steps steps can be run with either MCMC or nested sampling chains.
+By default, MCMC will be used if available and otherwise nested sampling will be used.
+The ``--sampler`` allows us to specify which chains to use.
+Note that the ``trend`` and ``auto`` plots are only available for MCMC.
+
+One of the main advantages of nested sampling is that it provides the Bayesian evidence.
+The RadVel CLI does not provide model comparison with the evidence, but the
+nested sampling results are saved under ``HD164922_ns/results.hdf5`` and can
+be accessed with ``radvel.nested_sampling.load_results()``.
+
+Once the sampling is finished, we can update the RV time series plot and
+generate the full suite of plots.
 
 .. code-block:: bash
 
