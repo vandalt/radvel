@@ -134,11 +134,6 @@ Convergence checks will start after the minsteps threshold or the minpercent thr
         choices=list(BACKENDS.keys())
     )
     psr_ns.add_argument(
-        '--save',
-        action='store_true',
-        help='Save full nested sampling run. Add `resume=True` to run-kwargs to continue.',
-    )
-    psr_ns.add_argument(
         '--overwrite',
         action='store_true',
         help='Overwrite nested sampling output if present.',

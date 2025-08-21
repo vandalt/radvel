@@ -356,15 +356,11 @@ def nested_sampling(args):
     resume = run_kwargs.get("resume", False)
     sampler_kwargs = _process_kwargs_str(args.sampler_kwargs)
 
-    if args.save or resume:
-        backend_loc = os.path.join(args.outputdir, conf_base+'_ns')
-    else:
-        backend_loc = None
+    backend_loc = os.path.join(args.outputdir, conf_base+'_ns')
 
     status = load_status(statfile)
     P, post = radvel.utils.initialize_posterior(config_file,
                                                 decorr=args.decorr)
-
     print(f'Running nested sampling backend {args.sampler}')
 
     results = radvel.nested_sampling.run(
@@ -390,11 +386,10 @@ def nested_sampling(args):
     csvfn = os.path.join(args.outputdir, conf_base+'_chains_ns.csv.bz2')
     chains.to_csv(csvfn, compression='bz2')
 
-    output_path = args.outputdir if args.outputdir is None else os.path.relpath(args.outputdir)
     savestate = {'run': True,
                  'postfile': os.path.relpath(postfile),
                  'chainfile': os.path.relpath(csvfn),
-                 'ns_outdir': output_path,
+                 'ns_outdir': os.path.relpath(backend_loc),
                  'summaryfile': os.path.relpath(saveto),
                  }
     savestate = savestate | sampler_kwargs | run_kwargs
