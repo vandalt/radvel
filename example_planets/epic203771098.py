@@ -66,11 +66,11 @@ data['tel'] = 'j'
 priors = [
     radvel.prior.EccentricityPrior( nplanets ),           # Keeps eccentricity < 1
     radvel.prior.PositiveKPrior( nplanets ),             # Keeps K > 0
-    radvel.prior.Gaussian('tc1', params['tc1'].value, 0.01), # Gaussian prior on tc1 with center at tc1 and width 0.01 days
-    radvel.prior.Gaussian('per1', params['per1'].value, 0.01),
-    radvel.prior.Gaussian('tc2', params['tc2'].value, 0.01),
-    radvel.prior.Gaussian('per2', params['per2'].value, 0.01),
-    radvel.prior.HardBounds('jit_j', 0.0, 15.0)
+    radvel.prior.Jeffreys('k1', 1e-2, 1e3),
+    radvel.prior.Jeffreys('k2', 1e-2, 1e3),
+    radvel.prior.HardBounds('jit_j', 0.0, 15.0),
+    radvel.prior.Gaussian('dvdt', 0, 1.0),
+    radvel.prior.Gaussian('curv', 0, 1e-1),
 ]
 
 # abscissa for slope and curvature terms (should be near mid-point of time baseline)
