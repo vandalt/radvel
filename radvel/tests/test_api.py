@@ -38,6 +38,11 @@ class _args(types.SimpleNamespace):
     proceed = False
     proceedname = None
     headless=False
+    sampler = 'auto'
+    run_kwargs = None
+    sampler_kwargs = None
+    overwrite = False
+    sampler = 'ultranest'
 
 
 def _standard_run(setupfn, arguments):
@@ -50,6 +55,11 @@ def _standard_run(setupfn, arguments):
 
     radvel.driver.fit(args)
     radvel.driver.mcmc(args)
+    args.overwrite = True
+    radvel.driver.nested_sampling(args)
+    # For ns step, sampler gives the library
+    # For subsequent steps, sampler should be mcmc, ns or auto
+    args.sampler = 'auto'
     radvel.driver.derive(args)
 
     args.type = ['trend', 'jit', 'e', 'nplanets', 'gp']
