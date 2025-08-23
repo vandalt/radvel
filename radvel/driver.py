@@ -584,7 +584,8 @@ def derive(args):
     sampler_type = _pick_sampler(args, status)
 
     P, post = radvel.utils.initialize_posterior(config_file)
-    post = radvel.posterior.load(status.get('fit', 'postfile'))
+    postfile = status.get(sampler_type, 'postfile')
+    post = radvel.posterior.load(postfile)
     chains = pd.read_csv(status.get(sampler_type, 'chainfile'))
 
     try:
@@ -670,8 +671,6 @@ values. Interpret posterior with caution.".format(num_nan, nan_perc))
     quantiles.to_csv(csvfn, columns=outcols)
 
     # saved derived paramters to posterior file
-    postfile = os.path.join(args.outputdir,
-                            '{}_post_obj.pkl'.format(conf_base))
     post.derived = quantiles[outcols]
     post.writeto(postfile)
     savestate['quantfile'] = os.path.relpath(csvfn)
