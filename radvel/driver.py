@@ -476,23 +476,21 @@ def tables(args):
 
     sampler_type = _pick_sampler(args, status)
     if sampler_type == 'mcmc':
-        chains = pd.read_csv(status.get('mcmc', 'chainfile'))
         minafactor = status.get('mcmc', 'minafactor')
         maxarchange = status.get('mcmc', 'maxarchange')
         maxgr = status.get('mcmc', 'maxgr')
         mintz = status.get('mcmc', 'mintz')
-        post = radvel.posterior.load(status.get('fit', 'postfile'))
     elif sampler_type == 'ns':
-        chains = pd.read_csv(status.get('ns', 'chainfile'))
         minafactor = maxarchange = maxgr = mintz = None
-        post = radvel.posterior.load(status.get('ns', 'postfile'))
-
     else:
         raise ValueError(
             "Got an unexpected sampler_type {}. Please report this error on GitHub".format(
                 sampler_type
             )
         )
+    chains = pd.read_csv(status.get(sampler_type, 'chainfile'))
+    post = radvel.posterior.load(status.get(sampler_type, 'postfile'))
+
 
     if 'derive' in status.sections() and status.getboolean('derive', 'run'):
         dchains = pd.read_csv(status.get('derive', 'chainfile'))
@@ -710,23 +708,22 @@ def report(args):
     P, post = radvel.utils.initialize_posterior(config_file)
 
     if sampler_type == 'mcmc':
-        chains = pd.read_csv(status.get('mcmc', 'chainfile'))
         minafactor = status.get('mcmc', 'minafactor')
         maxarchange = status.get('mcmc', 'maxarchange')
         maxgr = status.get('mcmc', 'maxgr')
         mintz = status.get('mcmc', 'mintz')
 
-        post = radvel.posterior.load(status.get('fit', 'postfile'))
     elif sampler_type == 'ns':
-        chains = pd.read_csv(status.get('ns', 'chainfile'))
         minafactor = maxarchange = maxgr = mintz = None
-        post = radvel.posterior.load(status.get('ns', 'postfile'))
     else:
         raise ValueError(
             "Got an unexpected sampler_type {}. Please report this error on GitHub".format(
                 sampler_type
             )
         )
+    chains = pd.read_csv(status.get(sampler_type, 'chainfile'))
+    post = radvel.posterior.load(status.get(sampler_type, 'postfile'))
+
     if 'derive' in status.sections() and status.getboolean('derive', 'run'):
         dchains = pd.read_csv(status.get('derive', 'chainfile'))
         chains = chains.join(dchains, rsuffix='_derived')
