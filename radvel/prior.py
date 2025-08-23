@@ -453,7 +453,7 @@ class NumericalPrior(Prior):
 
     """
 
-    def __init__(self, param_list, values, bw_method=None, bins=100):
+    def __init__(self, param_list, values, bw_method=None, bins='auto'):
         self.param_list = param_list
         self.pdf_estimate = gaussian_kde(values, bw_method=bw_method)
         # Ref (and source code) for the histogram: https://johannesbuchner.github.io/UltraNest/priors.html#Non-analytic-priors
