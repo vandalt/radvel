@@ -45,7 +45,7 @@ class _args(types.SimpleNamespace):
     sampler = 'ultranest'
 
 
-def _standard_run(setupfn, arguments):
+def _standard_run(setupfn, arguments, do_ns=True, do_mcmc=True):
     """
     Run through all of the standard steps
     """
@@ -54,9 +54,15 @@ def _standard_run(setupfn, arguments):
     args.setupfn = setupfn
 
     radvel.driver.fit(args)
-    radvel.driver.mcmc(args)
-    args.overwrite = True
-    radvel.driver.nested_sampling(args)
+
+    if do_mcmc:
+        radvel.driver.mcmc(args)
+    if do_ns:
+        args.overwrite = True
+        radvel.driver.nested_sampling(args)
+    if not (do_mcmc or do_ns):
+        raise ValueError('One of do_mcmc or do_ns must be true to run this test.')
+
     # For ns step, sampler gives the library
     # For subsequent steps, sampler should be mcmc, ns or auto
     args.sampler = 'auto'
@@ -69,7 +75,9 @@ def _standard_run(setupfn, arguments):
     args.type = ['params', 'priors', 'rv', 'ic_compare', 'derived', 'crit']
     radvel.driver.tables(args)
 
-    args.type = ['rv', 'corner', 'auto', 'trend', 'derived']
+    args.type = ['rv', 'corner', 'derived']
+    if do_mcmc:
+        args.type += ['auto', 'trend']
     args.plotkw = {'highlight_last': True, 'show_rms': True}
     radvel.driver.plots(args)
 
@@ -86,19 +94,46 @@ def test_k2(setupfn='example_planets/epic203771098.py'):
     args.setupfn = setupfn
     _standard_run(setupfn, args)
 
+def test_mcmc_proceed(setupfn='example_planets/epic203771098.py'):
+    """
+    Run through K2-24 example and try to resume
+    """
+    args = _args()
+    args.setupfn = setupfn
+    # We always re-sample: ensure that standard run with MCMC only works
+    _standard_run(setupfn, args, do_ns=False)
+
     # set the proceed flag and continue
     args.proceed = True
     radvel.driver.mcmc(args)
 
     args.ensembles = 1
-    try:
+    with pytest.raises(ValueError, match='nensembles, nwalkers, and'):
         radvel.driver.mcmc(args)
-    except ValueError:  # expected error when changing number of ensembles with proceed flag
-        pass
 
     args.serial = True
     args.proceed = False
     radvel.driver.mcmc(args)
+
+
+def test_ns_proceed(tmp_path, setupfn='example_planets/epic203771098.py'):
+    """
+    Run through K2-24 example and try to resume
+    """
+    args = _args()
+    # Use tmp_path fixture to isolate from previous runs
+    args.outputdir = str(tmp_path)
+    args.setupfn = setupfn
+    # We always re-sample: ensure that standard run with NS only works
+    _standard_run(setupfn, args, do_mcmc=False)
+
+    # set the proceed flag and continue
+    args.proceed = True
+    # TODO: Assert that truly resumes and does not start from scratch once API is fixed
+    # Not sure what the best way to do this is.
+    args.sampler = 'ultranest'
+    args.sampler_kwarg = "resume=True"
+    radvel.driver.nested_sampling(args)
 
 
 def test_hd(setupfn='example_planets/HD164922.py'):
