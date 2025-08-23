@@ -96,8 +96,7 @@ You may want to use the '--gp' flag when making these plots.")
                 assert status.getboolean(sampler_type, 'run'), \
                     "Must run MCMC or nested sampling before making corner plot"
             else:
-                assert status.getboolean('mcmc', 'run'), \
-                    "Must run MCMC before making auto or trend plots"
+                assert sampler_type == 'mcmc', 'Must run MCMC before making auto or trend plots'
                 autocorr = pd.read_csv(status.get(sampler_type, 'autocorrfile'))
 
             chains = pd.read_csv(status.get(sampler_type, 'chainfile'))
