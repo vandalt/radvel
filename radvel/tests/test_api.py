@@ -335,32 +335,43 @@ def test_priors(params_and_vector_for_priors):
             "Prior output does not match expectation"
 
 
-def test_prior_transforms(params_and_vector_for_priors):
-
-    rng = np.random.default_rng(3245)
-    u = rng.uniform(size=100)
-
-    prior_dict = {
-        radvel.prior.Gaussian("per1", 9.9, 0.1): scipy.stats.norm.ppf(u, 9.9, 0.1),
-        radvel.prior.HardBounds("per1", 1.0, 9.0): scipy.stats.uniform.ppf(u, 1.0, 9.0 - 1.0),
-        radvel.prior.Jeffreys("per1", 0.1, 100.0): scipy.stats.loguniform.ppf(u, 0.1, 100.0),
-        radvel.prior.ModifiedJeffreys(
-            "per1", 0.0, 100.0, -0.1
-        ): scipy.stats.loguniform.ppf(u, 0.0+0.1, 100.0+0.1, loc=-0.1),
+prior_scipy_list = [
+    (radvel.prior.Gaussian("per1", 9.9, 0.1), scipy.stats.norm(9.9, 0.1)),
+    (radvel.prior.HardBounds("per1", 1.0, 9.0), scipy.stats.uniform(1.0, 9.0 - 1.0)),
+    (radvel.prior.Jeffreys("per1", 0.1, 100.0), scipy.stats.loguniform(0.1, 100.0)),
+    (radvel.prior.NumericalPrior(["sesinw1"], np.random.randn(1, 5000000)), scipy.stats.norm(0, 1),),
+    (
         radvel.prior.UserDefinedPrior(
             ["per1"],
             lambda x: scipy.stats.lognorm.pdf(x, 1e-1, 1e1),
             "lognorm",
             transform_func=lambda x: scipy.stats.lognorm.ppf(x, 1e-1, 1e1),
-        ): scipy.stats.lognorm.ppf(u, 1e-1, 1e1),
+        ),
+        scipy.stats.lognorm(1e-1, 1e1),
+    ),
+]
+# Repeat for numerical prior to make sure staistically robust
+prior_scipy_list += 10 * [
+    (radvel.prior.ModifiedJeffreys("per1", 0.0, 100.0, -0.1), scipy.stats.loguniform(0.0 + 0.1, 100.0 + 0.1, loc=-0.1),)
+]
+@pytest.mark.parametrize("prior,scipy_dist", prior_scipy_list)
+def test_prior_transforms(prior, scipy_dist):
 
-    }
+    rng = np.random.default_rng(3245)
+    u = rng.uniform(size=100)
 
-    for prior, expected_val in prior_dict.items():
-        np.testing.assert_allclose(
-            prior.transform(u),
-            expected_val,
-            err_msg=f"Prior transform failed for {prior}")
+
+    expected_val = scipy_dist.ppf(u)
+    np.testing.assert_allclose(
+        prior.transform(u),
+        expected_val,
+        # Higher tolerance for numerical prior: interoplation of a histogram, otherwise use default rtol=1e-7
+        atol=1.5e-2 if isinstance(prior, radvel.prior.NumericalPrior) else 0.0,
+        err_msg=f"Prior transform failed for {prior}")
+
+def test_userdefined_no_transform():
+    rng = np.random.default_rng(3245)
+    u = rng.uniform(size=100)
 
     with pytest.raises(TypeError):
         radvel.prior.UserDefinedPrior(
@@ -369,18 +380,21 @@ def test_prior_transforms(params_and_vector_for_priors):
             "lognorm",
         ).transform(u)
 
-    # Make sure other priors raise error for transform
-    # TODO: Test numerical prior transform, now that it is implemented
-    no_transform_priors = [
+@pytest.mark.parametrize(
+    "prior",
+    [
         radvel.prior.EccentricityPrior(1),
         radvel.prior.PositiveKPrior(1),
         radvel.prior.SecondaryEclipsePrior(1, 5.0, 10.0),
-        # radvel.prior.NumericalPrior(['sesinw1'], np.random.randn(1,5000000)),
-        radvel.prior.InformativeBaselinePrior('per1', 5.0, duration=1.0),
-    ]
-    for prior in no_transform_priors:
-        with pytest.raises(NotImplementedError):
-            prior.transform(u)
+        radvel.prior.InformativeBaselinePrior("per1", 5.0, duration=1.0),
+    ],
+)
+def test_priors_no_transform(prior):
+    rng = np.random.default_rng(3245)
+    u = rng.uniform(size=100)
+
+    with pytest.raises(NotImplementedError):
+        prior.transform(u)
 
 
 @pytest.fixture
