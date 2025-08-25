@@ -352,7 +352,6 @@ def nested_sampling(args):
                             "{}_radvel.stat".format(conf_base))
 
     run_kwargs = _process_kwargs_str(args.run_kwargs)
-    resume = run_kwargs.get("resume", False)
     sampler_kwargs = _process_kwargs_str(args.sampler_kwargs)
 
     backend_loc = os.path.join(args.outputdir, conf_base+'_ns')
@@ -365,6 +364,7 @@ def nested_sampling(args):
     results = radvel.nested_sampling.run(
         post,
         output_dir=backend_loc,
+        proceed=args.proceed,
         overwrite=args.overwrite,
         sampler=args.sampler,
         run_kwargs=run_kwargs,

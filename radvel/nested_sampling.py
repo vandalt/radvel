@@ -25,6 +25,7 @@ def _run_dynesty(
         output_dir: Output directory where the sampler checkpoints and results will be stored. Nothing is stored by default.
             **Note**: This replaces the sampler's built-in "checkpoint_file" argument. A ``dynesty.save`` file is created automatically.
             When sampling is finished, the final state of the sampler is stored.
+        proceed: Continue from previous run in output_dir if available.
         sampler_kwargs: Dictionary of keyword arguments passed to the 'sampler' object from the underlying nested sampling package at initialization.
             See each package's documentation to learn more on the available arguments. This is not available for ``sampler='multinest'``.
             Defaults to ``None``.
@@ -120,6 +121,7 @@ def _run_ultranest(
         output_dir: Output directory where the sampler checkpoints and results will be stored. Nothing is stored by default.
             **Note**: This replaces the sampler's built-in "log_dir" argument.
             The ultranest ``log_dir`` is automatically set to ``output_dir``.
+        proceed: Continue from previous run in output_dir if available.
         sampler_kwargs: Dictionary of keyword arguments passed to the 'sampler' object from the underlying nested sampling package at initialization.
             See each package's documentation to learn more on the available arguments.
             Defaults to ``None``.
@@ -193,6 +195,7 @@ def _run_multinest(
         output_dir: Output directory where the sampler checkpoints and results will be stored. Nothing is stored by default.
             **Note**: This replaces the sampler's built-in "outputfiles_basename" argument.
             If ``output_dir`` is specified, sets ``outputfiles_basename`` to ``<output_dir>/out``
+        proceed: Continue from previous run in output_dir if available.
         overwrite: Overwrite the output files if they exist. Defaults to ``False``.
         run_kwargs: Dictionary of keyword arguments passed to the 'run' methods from the underlying nested sampling package.
             See each package's documentation to learn more on the available aruments.
@@ -280,6 +283,7 @@ def _run_nautilus(
         output_dir: Output directory where the sampler checkpoints and results will be stored. Nothing is stored by default.
             **Note**: This replaces the sampler's built-in "filepath argument.
             The nautilus output is automatically stored in ``nautilus_output.hdf5`` under that location.
+        proceed: Continue from previous run in output_dir if available.
         sampler_kwargs: Dictionary of keyword arguments passed to the 'sampler' object from the underlying nested sampling package at initialization.
             See each package's documentation to learn more on the available arguments.
             Defaults to ``None``.
@@ -333,14 +337,9 @@ BACKENDS = {
 }
 
 
-# TODO: Add some options to make closer to MCMC:
-# - nlive
-# - proceed/resume and make sure it works
 def run(
     post: Posterior,
-    # TODO: Use save and savename like in radvel.mcmc?
     output_dir: Optional[str] = None,
-    # TODO: proceed and proceedname
     overwrite: bool = False,
     proceed: bool = False,
     sampler: str = "ultranest",
@@ -356,8 +355,8 @@ def run(
             **Note**: This replaces the sampler's built-in "checkpoint_file", "log_dir", or "outputfiles_basename" argument.
             Once you specify output there, everything is saved there automatically.
             A ``results.hdf5`` file will also be saved with the results dict, except for the sampler.
-        overwrite: Overwrite the results.hdf5 if True. This is not used for checkpoint files from the sampler as
-            they can be used to resume a run. Defaults to ``False``.
+        overwrite: Overwrite the results.hdf5 if True. Will be enabled automatically when proceed=True.
+        proceed: Resume from a previous run in the same output_dir if available. Also automatically enables overwrite.
         sampler: name of the sampler to use. Should be one of 'ultranest', 'dynesty-static', 'dynesty-dynamic', 'nautilus', or 'multinest'.
             Defaults to 'ultranest'.
         sampler_kwargs: Dictionary of keyword arguments passed to the 'sampler' object from the underlying nested sampling package at initialization.
@@ -383,11 +382,14 @@ def run(
     """
     post.check_proper_priors()
 
+    # Proceed automatically enables overwrite.
+    overwrite = overwrite or proceed
+
     if output_dir is not None:
         results_file = os.path.join(output_dir, "results.hdf5")
         if os.path.exists(results_file) and not overwrite:
             raise FileExistsError(
-                f"Results file {results_file} exists and overwrite is False."
+                f"Results file {results_file} exists and 'overwrite' is False."
             )
 
     sampler = sampler.lower()

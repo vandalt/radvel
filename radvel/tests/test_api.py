@@ -1,17 +1,18 @@
 import sys
 import copy
 import warnings
+import time
 import types
 import pytest
 
 import radvel
 import radvel.driver
+from radvel.nested_sampling import BACKENDS
 import numpy as np
 import scipy
 import radvel.prior
 
 warnings.simplefilter('ignore')
-
 
 class _args(types.SimpleNamespace):
     outputdir = '/tmp/'
@@ -58,7 +59,6 @@ def _standard_run(setupfn, arguments, do_ns=True, do_mcmc=True):
     if do_mcmc:
         radvel.driver.mcmc(args)
     if do_ns:
-        args.overwrite = True
         radvel.driver.nested_sampling(args)
     if not (do_mcmc or do_ns):
         raise ValueError('One of do_mcmc or do_ns must be true to run this test.')
@@ -116,25 +116,44 @@ def test_mcmc_proceed(setupfn='example_planets/epic203771098.py'):
     radvel.driver.mcmc(args)
 
 
-def test_ns_proceed(tmp_path, setupfn='example_planets/epic203771098.py'):
+@pytest.mark.parametrize("sampler", list(BACKENDS.keys()))
+def test_ns_proceed(tmp_path, sampler, setupfn='example_planets/epic203771098.py'):
     """
     Run through K2-24 example and try to resume
     """
     args = _args()
+    args.sampler = sampler
     # Use tmp_path fixture to isolate from previous runs
     args.outputdir = str(tmp_path)
     args.setupfn = setupfn
     # We always re-sample: ensure that standard run with NS only works
     _standard_run(setupfn, args, do_mcmc=False)
 
-    # set the proceed flag and continue
-    args.proceed = True
-    # TODO: Assert that truly resumes and does not start from scratch once API is fixed
-    # Not sure what the best way to do this is.
-    args.sampler = 'ultranest'
-    args.sampler_kwarg = "resume=True"
-    radvel.driver.nested_sampling(args)
+    args.sampler = sampler  # Need to set sampler again because standard_run sets to mcmc/ns
 
+    # Test that overwrites=False works
+    with pytest.raises(FileExistsError, match="Results file"):
+        radvel.driver.nested_sampling(args)
+
+    # Test that resume is not accepted for sampler/run kwargs
+    args.overwrite = True
+    if sampler in ['ultranest', 'nautilus']:
+        args.sampler_kwargs = "resume=True"
+    else:
+        args.run_kwargs = "resume=True"
+    with pytest.raises(ValueError, match="'resume' not supported"):
+        radvel.driver.nested_sampling(args)
+    args.overwrite = False
+    args.sampler_kwargs = None
+    args.run_kwargs = None
+
+    # Test that resume is not too long (that it actually resumes)
+    args.proceed = True
+    start = time.time()
+    radvel.driver.nested_sampling(args)
+    end = time.time()
+    time_minutes = (start - end) / 60
+    assert time_minutes < 1.0
 
 def test_hd(setupfn='example_planets/HD164922.py'):
     """
@@ -498,7 +517,6 @@ def test_model_comp(setupfn='example_planets/HD164922.py'):
         raise Exception("Unexpected result from model_comp.")
     except AssertionError:  # expected result
         return
-
 
 if __name__ == '__main__':
     #test_k2()

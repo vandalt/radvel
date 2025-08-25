@@ -126,12 +126,16 @@ Convergence checks will start after the minsteps threshold or the minpercent thr
     psr_mcmc.set_defaults(func=radvel.driver.mcmc)
 
     # Nested Sampling
-    psr_ns = subpsr.add_parser('ns', parents=[psr_parent], description='Perform nested ampling')
+    psr_ns = subpsr.add_parser('ns', parents=[psr_parent], description='Perform nested sampling')
     psr_ns.add_argument(
         '--sampler',
         default='ultranest',
         help='Nested sampling package to use',
         choices=list(BACKENDS.keys())
+    )
+    psr_ns.add_argument(
+        '--proceed', dest='proceed', action='store_true',
+        help='If True, nested sampling will resume from the previous run. Also enables --overwrite.'
     )
     psr_ns.add_argument(
         '--overwrite',
