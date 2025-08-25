@@ -10,10 +10,12 @@ from pandas import DataFrame, read_hdf
 from radvel.posterior import Posterior
 
 
+# TODO: Document proceed for all samplers
 def _run_dynesty(
     post: Posterior,
     output_dir: Optional[str] = None,
     sampler_type: str = "static",
+    proceed: bool = False,
     sampler_kwargs: Optional[dict] = None,
     run_kwargs: Optional[dict] = None,
 ) -> dict:
@@ -51,7 +53,9 @@ def _run_dynesty(
             f"Expected 'dynamic' or 'static' as sampler_type. Got {sampler_type}"
         )
 
-    resume = run_kwargs.get("resume", False)
+    if "resume" in run_kwargs:
+        raise ValueError("'resume' not supported for dynesty. Use radlvel's 'proceed' instead'")
+    run_kwargs["resume"] = proceed
 
     if "checkpoint_file" in run_kwargs:
         raise ValueError(
@@ -62,7 +66,7 @@ def _run_dynesty(
         run_kwargs["checkpoint_file"] = checkpoint_file
     checkpoint_file = run_kwargs.get("checkpoint_file", None)
 
-    if resume and checkpoint_file is not None and os.path.exists(checkpoint_file):
+    if proceed and checkpoint_file is not None and os.path.exists(checkpoint_file):
         sampler = sampler_class.restore(checkpoint_file)
     else:
         sampler = sampler_class(
@@ -73,7 +77,7 @@ def _run_dynesty(
         )
         # Dynesty cannot resume when the file does not exist
         if (
-            resume
+            proceed
             and checkpoint_file is not None
             and not os.path.exists(checkpoint_file)
         ):
@@ -101,6 +105,7 @@ def _run_dynesty(
 def _run_ultranest(
     post: Posterior,
     output_dir: Optional[str] = None,
+    proceed: bool = False,
     sampler_kwargs: Optional[dict] = None,
     run_kwargs: Optional[dict] = None,
 ) -> dict:
@@ -138,10 +143,16 @@ def _run_ultranest(
         raise ValueError(
             "log_dir not supported for ultranest. Use radvel's output_dir instead."
         )
+    if "resume" in sampler_kwargs:
+        raise ValueError(
+            "'resume' not supported for ultranest. Use radvel's 'proceed' instead."
+        )
+    sampler_kwargs["resume"] = proceed or 'overwrite'
     sampler_kwargs["log_dir"] = output_dir
 
     param_names = post.name_vary_params()
     wrapped_params = [pn.startswith(("tc", "tp")) for pn in param_names]
+    # I guess simplest is to use overwrite or re-run
     sampler = ReactiveNestedSampler(
         param_names,
         post.likelihood_ns_array,
@@ -173,6 +184,7 @@ def _run_multinest(
     post: Posterior,
     output_dir: Optional[str] = None,
     overwrite: bool = False,
+    proceed: bool = False,
     run_kwargs: Optional[dict] = None,
 ) -> dict:
     """Run nested sampling with `PyMultiNest <https://johannesbuchner.github.io/PyMultiNest/pymultinest.html#>`_
@@ -210,9 +222,13 @@ def _run_multinest(
         )
     run_kwargs["outputfiles_basename"] = os.path.join(output_dir, "out")
 
-    resume = run_kwargs.get("resume", True)
+    if "resume" in run_kwargs:
+        raise ValueError(
+            "'resume' not supported for multinest. Use radvel's 'proceed' instead."
+        )
+    run_kwargs["resume"] = proceed
 
-    os.makedirs(output_dir, exist_ok=tmp or overwrite or resume)
+    os.makedirs(output_dir, exist_ok=tmp or overwrite or proceed)
 
     def loglike(p, ndim, nparams):
         """Log-likelihood for multinest
@@ -254,6 +270,7 @@ def _run_multinest(
 def _run_nautilus(
     post: Posterior,
     output_dir: Optional[str] = None,
+    proceed: bool = False,
     sampler_kwargs: Optional[dict] = None,
     run_kwargs: Optional[dict] = None,
 ) -> dict:
@@ -288,6 +305,11 @@ def _run_nautilus(
         )
     if output_dir is not None:
         sampler_kwargs["filepath"] = os.path.join(output_dir, "nautilus_output.hdf5")
+    if "resume" in sampler_kwargs:
+        raise ValueError(
+            "'resume' not supported for ultranest. Use radvel's 'proceed' instead."
+        )
+    sampler_kwargs["resume"] = proceed
 
     ndim = len(post.name_vary_params())
     sampler = Sampler(
@@ -312,10 +334,16 @@ BACKENDS = {
 }
 
 
+# TODO: Add some options to make closer to MCMC:
+# - nlive
+# - proceed/resume and make sure it works
 def run(
     post: Posterior,
+    # TODO: Use save and savename like in radvel.mcmc?
     output_dir: Optional[str] = None,
+    # TODO: proceed and proceedname
     overwrite: bool = False,
+    proceed: bool = False,
     sampler: str = "ultranest",
     sampler_kwargs: Optional[dict] = None,
     run_kwargs: Optional[dict] = None,
@@ -368,17 +396,17 @@ def run(
 
     # fmt: off
     if sampler == "ultranest":
-        results = _run_ultranest(post, output_dir=output_dir, sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
+        results = _run_ultranest(post, output_dir=output_dir, proceed=proceed, sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
     elif sampler == "dynesty-static":
-        results = _run_dynesty(post, sampler_type="static", output_dir=output_dir, sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
+        results = _run_dynesty(post, sampler_type="static", proceed=proceed, output_dir=output_dir, sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
     elif sampler == "dynesty-dynamic":
-        results = _run_dynesty(post, sampler_type="dynamic", output_dir=output_dir, sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
+        results = _run_dynesty(post, sampler_type="dynamic", proceed=proceed, output_dir=output_dir, sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
     elif sampler == "multinest":
         if sampler_kwargs is not None and len(sampler_kwargs) > 0:
             raise TypeError("Argument sampler_kwargs is invalid for sampler 'multinest', only run_kwargs is supported")
-        results = _run_multinest(post, output_dir=output_dir, overwrite=overwrite, run_kwargs=run_kwargs)
+        results = _run_multinest(post, output_dir=output_dir, proceed=proceed, overwrite=overwrite, run_kwargs=run_kwargs)
     elif sampler == "nautilus":
-        results = _run_nautilus(post, output_dir=output_dir, sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
+        results = _run_nautilus(post, output_dir=output_dir, proceed=proceed, sampler_kwargs=sampler_kwargs, run_kwargs=run_kwargs)
     else:
         raise ValueError(f"Unknown sampler '{sampler}'. Available options are {list(BACKENDS.keys())}")
     # fmt: on
