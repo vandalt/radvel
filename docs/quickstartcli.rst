@@ -131,13 +131,13 @@ After nested sampling has run, the *equal weight* (equivalent to MCMC)
 chains from nested sampling are stored in ``HD164922_chains_ns.csv.bz2``.
 All subsequent steps steps can be run with either MCMC or nested sampling chains.
 By default, MCMC will be used if available and otherwise nested sampling will be used.
-The ``--sampler`` allows us to specify which chains to use.
+The ``--sampler`` argument allows us to specify which chains to use.
 Note that the ``trend`` and ``auto`` plots are only available for MCMC.
 
 One of the main advantages of nested sampling is that it provides the Bayesian evidence.
-The RadVel CLI does not provide model comparison with the evidence, but the
+The RadVel CLI does not implement model comparison with the evidence, but the
 nested sampling results are saved under ``HD164922_ns/results.hdf5`` and can
-be accessed with ``radvel.nested_sampling.load_results()``.
+be accessed with ``radvel.nested_sampling.load_results()``. See `the TOI-141 tutorial <./tutorials/toi141_fitting_nested_sampling.ipynb>`_ for an example that includes model comparison.
 
 Once the sampling is finished, we can update the RV time series plot and
 generate the full suite of plots.

@@ -10,7 +10,6 @@ from pandas import DataFrame, read_hdf
 from radvel.posterior import Posterior
 
 
-# TODO: Document proceed for all samplers
 def _run_dynesty(
     post: Posterior,
     output_dir: Optional[str] = None,
@@ -369,7 +368,8 @@ def run(
     Returns:
         Dictionary of results with the keys below.
 
-        - ``samples``: Samples dataframe with one column per parameters and lnprobability for each set.
+        - ``samples``: Samples dataframe with one column per parameters and lnprobability (log-posterior) for each set.
+                       The samples are equally weighted, meaning they are equivalent to MCMC samples.
         - ``lnZ``: Log of the Bayesian evidence
         - ``lnZ``: Statistical uncertainty on the evidence
         - ``sampler``: Sampler object used by the nested sampling library. Provides more fine-grained access to the results.
@@ -411,7 +411,6 @@ def run(
         raise ValueError(f"Unknown sampler '{sampler}'. Available options are {list(BACKENDS.keys())}")
     # fmt: on
     
-    # TODO: Update chains description in docs
     df = DataFrame(results["samples"], columns=post.name_vary_params())
     lnprob_arr = np.empty(len(df))
     for i, row in df.iterrows():
