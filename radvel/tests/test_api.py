@@ -86,19 +86,23 @@ def _standard_run(setupfn, arguments, do_ns=True, do_mcmc=True):
     radvel.driver.report(args)
 
 
-def test_k2(setupfn='example_planets/epic203771098.py'):
+def test_k2(tmp_path, setupfn='example_planets/epic203771098.py'):
     """
     Run through K2-24 example
     """
     args = _args()
+    # Use tmp_path fixture to isolate from previous runs
+    args.outputdir = str(tmp_path)
     args.setupfn = setupfn
     _standard_run(setupfn, args)
 
-def test_mcmc_proceed(setupfn='example_planets/epic203771098.py'):
+def test_mcmc_proceed(tmp_path, setupfn='example_planets/epic203771098.py'):
     """
     Run through K2-24 example and try to resume
     """
     args = _args()
+    # Use tmp_path fixture to isolate from previous runs
+    args.outputdir = str(tmp_path)
     args.setupfn = setupfn
     # We always re-sample: ensure that standard run with MCMC only works
     _standard_run(setupfn, args, do_ns=False)
