@@ -21,9 +21,16 @@ def test_notebook(nbfile):
     with open(nbfile) as f:
         nb = nbformat.read(f, as_version=4)
 
+    basename = os.path.basename(nbfile)
+    # Skip the all samplers notebook. Same functionality tested in api tests and it is slow due to repeated sampling to convergence.
+    skip_notebooks = ["k2_24_demo_all_samplers.ipynb"]
+    if basename in skip_notebooks:
+        return
+    timeout = 900
+
     if sys.version_info[0] < 3:
-        ep = ExecutePreprocessor(timeout=900, kernel_name="python2")
+        ep = ExecutePreprocessor(timeout=timeout, kernel_name="python2")
     else:
-        ep = ExecutePreprocessor(timeout=900, kernel_name="python3")
+        ep = ExecutePreprocessor(timeout=timeout, kernel_name="python3")
 
     ep.preprocess(nb, {"metadata": {"path": os.path.dirname(nbfile)}})
