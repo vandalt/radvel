@@ -48,7 +48,7 @@ def plots(args):
                                                 decorr=args.decorr)
 
     assert status.getboolean('fit', 'run'), \
-        "Must perform max-liklihood fit before plotting"
+        "Must perform max-likelihood fit before plotting"
     post = radvel.posterior.load(status.get('fit', 'postfile'))
 
     for ptype in args.type:
@@ -91,11 +91,15 @@ You may want to use the '--gp' flag when making these plots.")
                         break
 
         if ptype == 'corner' or ptype == 'auto' or ptype == 'trend':
-            assert status.getboolean('mcmc', 'run'), \
-                "Must run MCMC before making corner, auto, or trend plots"
+            sampler_type = _pick_sampler(args, status)
+            if ptype == 'corner':
+                assert status.getboolean(sampler_type, 'run'), \
+                    "Must run MCMC or nested sampling before making corner plot"
+            else:
+                assert sampler_type == 'mcmc', 'Must run MCMC before making auto or trend plots'
+                autocorr = pd.read_csv(status.get(sampler_type, 'autocorrfile'))
 
-            chains = pd.read_csv(status.get('mcmc', 'chainfile'))
-            autocorr = pd.read_csv(status.get('mcmc', 'autocorrfile'))
+            chains = pd.read_csv(status.get(sampler_type, 'chainfile'))
 
         if ptype == 'auto':
             saveto = os.path.join(args.outputdir, conf_base+'_auto.pdf')
@@ -205,62 +209,7 @@ def mcmc(args):
     minafactor = statevars.minafactor
     maxarchange = statevars.maxarchange
 
-    # Convert chains into synth basis
-    synthchains = chains.copy()
-    for par in post.params.keys():
-        if not post.vector.vector[post.vector.indices[par]][1]:
-            synthchains[par] = post.vector.vector[post.vector.indices[par]][0]
-
-    synthchains = post.params.basis.to_synth(synthchains)
-    synth_quantile = synthchains.quantile([0.159, 0.5, 0.841])
-
-    # Get quantiles and update posterior object to median
-    # values returned by MCMC chains
-    post_summary = chains.quantile([0.159, 0.5, 0.841])
-
-    for k in chains.columns:
-        if k in post.params.keys():
-            post.vector.vector[post.vector.indices[k]][0] = post_summary[k][0.5]
-
-    post.vector.vector_to_dict()
-
-    print("Performing post-MCMC maximum likelihood fit...")
-    post = radvel.fitting.maxlike_fitting(post, verbose=False)
-
-    final_logprob = post.logprob()
-    final_residuals = post.likelihood.residuals().std()
-    final_chisq = np.sum(post.likelihood.residuals()**2 / (post.likelihood.errorbars()**2))
-    deg_of_freedom = len(post.likelihood.y) - len(post.likelihood.get_vary_params())
-    final_chisq_reduced = final_chisq / deg_of_freedom
-    post.vector.vector_to_dict()
-    synthparams = post.params.basis.to_synth(post.params)
-
-    print("Calculating uncertainties...")
-    post.uparams = {}
-    post.medparams = {}
-    post.maxparams = {}
-    for par in synthparams.keys():
-        maxlike = synthparams[par].value
-        med = synth_quantile[par][0.5]
-        high = synth_quantile[par][0.841] - med
-        low = med - synth_quantile[par][0.159]
-        err = np.mean([high, low])
-        if maxlike == -np.inf and med == -np.inf and np.isnan(low) and np.isnan(high):
-            err = 0.0
-        else:
-            err = radvel.utils.round_sig(err)
-        if err > 0.0:
-            med, err, errhigh = radvel.utils.sigfig(med, err)
-            maxlike, err, errhigh = radvel.utils.sigfig(maxlike, err)
-        post.uparams[par] = err
-        post.medparams[par] = med
-        post.maxparams[par] = maxlike
-
-    print("Final loglikelihood = %f" % final_logprob)
-    print("Final RMS = %f" % final_residuals)
-    print("Final reduced chi-square = {}".format(final_chisq_reduced))
-    print("Best-fit parameters:")
-    print(post)
+    post, post_summary, chains = sampling_postprocessing(post, chains)
 
     print("Saving output files...")
     saveto = os.path.join(args.outputdir, conf_base+'_post_summary.csv')
@@ -299,6 +248,151 @@ def mcmc(args):
     save_status(statfile, 'mcmc', savestate)
 
     statevars.reset()
+
+
+def sampling_postprocessing(post, chains):
+    # Convert chains into synth basis
+    synthchains = chains.copy()
+    for par in post.params.keys():
+        if not post.vector.vector[post.vector.indices[par]][1]:
+            synthchains[par] = post.vector.vector[post.vector.indices[par]][0]
+
+    synthchains = post.params.basis.to_synth(synthchains)
+    synth_quantile = synthchains.quantile([0.159, 0.5, 0.841])
+
+    # Get quantiles and update posterior object to median
+    # values returned by MCMC chains
+    post_summary = chains.quantile([0.159, 0.5, 0.841])
+
+    for k in chains.columns:
+        if k in post.params.keys():
+            post.vector.vector[post.vector.indices[k]][0] = post_summary[k][0.5]
+
+    post.vector.vector_to_dict()
+
+    print("Performing post-sampling maximum likelihood fit...")
+    post = radvel.fitting.maxlike_fitting(post, verbose=False)
+
+    final_logprob = post.logprob()
+    final_residuals = post.likelihood.residuals().std()
+    final_chisq = np.sum(post.likelihood.residuals()**2 / (post.likelihood.errorbars()**2))
+    deg_of_freedom = len(post.likelihood.y) - len(post.likelihood.get_vary_params())
+    final_chisq_reduced = final_chisq / deg_of_freedom
+    post.vector.vector_to_dict()
+    synthparams = post.params.basis.to_synth(post.params)
+
+    print("Calculating uncertainties...")
+    post.uparams = {}
+    post.medparams = {}
+    post.maxparams = {}
+    for par in synthparams.keys():
+        maxlike = synthparams[par].value
+        med = synth_quantile[par][0.5]
+        high = synth_quantile[par][0.841] - med
+        low = med - synth_quantile[par][0.159]
+        err = np.mean([high, low])
+        if maxlike == -np.inf and med == -np.inf and np.isnan(low) and np.isnan(high):
+            err = 0.0
+        else:
+            err = radvel.utils.round_sig(err)
+        if err > 0.0:
+            med, err, errhigh = radvel.utils.sigfig(med, err)
+            maxlike, err, errhigh = radvel.utils.sigfig(maxlike, err)
+        post.uparams[par] = err
+        post.medparams[par] = med
+        post.maxparams[par] = maxlike
+
+    print("Final loglikelihood = %f" % final_logprob)
+    print("Final RMS = %f" % final_residuals)
+    print("Final reduced chi-square = {}".format(final_chisq_reduced))
+    print("Best-fit parameters:")
+    print(post)
+
+    return post, post_summary, chains
+
+
+def _cast_str_arg(arg):
+    try:
+        return int(arg)
+    except ValueError:
+        pass
+    try:
+        return float(arg)
+    except ValueError:
+        pass
+
+    if arg.lower() == "true":
+        return True
+    elif arg.lower() == "false":
+        return False
+    else:
+        return arg
+
+def _process_kwargs_str(kwargs_str):
+    if kwargs_str is None:
+        return {}
+
+    kwargs_dict = {}
+    pairs_str = kwargs_str.split(" ")
+    for pair in pairs_str:
+        key, value = pair.split("=")
+        kwargs_dict[key] = _cast_str_arg(value)
+    return kwargs_dict
+
+
+def nested_sampling(args):
+    """Perform nested sampling
+
+    Args:
+        args (ArgumentParser): command line arguments
+    """
+    config_file = args.setupfn
+    conf_base = os.path.basename(config_file).split('.')[0]
+    statfile = os.path.join(args.outputdir,
+                            "{}_radvel.stat".format(conf_base))
+
+    run_kwargs = _process_kwargs_str(args.run_kwargs)
+    sampler_kwargs = _process_kwargs_str(args.sampler_kwargs)
+
+    backend_loc = os.path.join(args.outputdir, conf_base+'_ns')
+
+    status = load_status(statfile)
+    P, post = radvel.utils.initialize_posterior(config_file,
+                                                decorr=args.decorr)
+    print(f'Running nested sampling backend {args.sampler}')
+
+    results = radvel.nested_sampling.run(
+        post,
+        output_dir=backend_loc,
+        proceed=args.proceed,
+        overwrite=args.overwrite,
+        sampler=args.sampler,
+        run_kwargs=run_kwargs,
+        sampler_kwargs=sampler_kwargs
+    )
+    chains = results["samples"]
+
+    post, post_summary, chains = sampling_postprocessing(post, chains)
+
+    print("Saving output files...")
+    saveto = os.path.join(args.outputdir, conf_base+'_post_summary_ns.csv')
+    post_summary.to_csv(saveto, sep=',')
+
+    postfile = os.path.join(args.outputdir,
+                            '{}_post_obj_ns.pkl'.format(conf_base))
+    post.writeto(postfile)
+
+    csvfn = os.path.join(args.outputdir, conf_base+'_chains_ns.csv.bz2')
+    chains.to_csv(csvfn, compression='bz2')
+
+    savestate = {'run': True,
+                 'postfile': os.path.relpath(postfile),
+                 'chainfile': os.path.relpath(csvfn),
+                 'ns_outdir': os.path.relpath(backend_loc),
+                 'summaryfile': os.path.relpath(saveto),
+                 }
+    savestate = savestate | sampler_kwargs | run_kwargs
+    save_status(statfile, 'ns', savestate)
 
 
 def ic_compare(args):
@@ -378,16 +472,26 @@ def tables(args):
                             "{}_radvel.stat".format(conf_base))
     status = load_status(statfile)
 
-    assert status.getboolean('mcmc', 'run'), \
-        "Must run MCMC before making tables"
-
     P, post = radvel.utils.initialize_posterior(config_file)
-    post = radvel.posterior.load(status.get('fit', 'postfile'))
-    chains = pd.read_csv(status.get('mcmc', 'chainfile'))
-    minafactor = status.get('mcmc', 'minafactor')
-    maxarchange = status.get('mcmc', 'maxarchange')
-    maxgr = status.get('mcmc', 'maxgr')
-    mintz = status.get('mcmc', 'mintz')
+
+    sampler_type = _pick_sampler(args, status)
+    if sampler_type == 'mcmc':
+        minafactor = status.get('mcmc', 'minafactor')
+        maxarchange = status.get('mcmc', 'maxarchange')
+        maxgr = status.get('mcmc', 'maxgr')
+        mintz = status.get('mcmc', 'mintz')
+    elif sampler_type == 'ns':
+        minafactor = maxarchange = maxgr = mintz = None
+    else:
+        raise ValueError(
+            "Got an unexpected sampler_type {}. Please report this error on GitHub".format(
+                sampler_type
+            )
+        )
+    chains = pd.read_csv(status.get(sampler_type, 'chainfile'))
+    post = radvel.posterior.load(status.get(sampler_type, 'postfile'))
+
+
     if 'derive' in status.sections() and status.getboolean('derive', 'run'):
         dchains = pd.read_csv(status.get('derive', 'chainfile'))
         chains = chains.join(dchains, rsuffix='_derived')
@@ -433,6 +537,32 @@ def tables(args):
         save_status(statfile, 'table', savestate)
 
 
+def _pick_sampler(args, status):
+    has_mcmc = status.has_section('mcmc') and status.getboolean('mcmc', 'run')
+    has_ns = status.has_section('ns') and status.getboolean('ns', 'run')
+    assert has_mcmc or has_ns, "Must run MCMC or nested sampling before making tables or deriving parameters"
+
+    if args.sampler == 'auto':
+        if has_mcmc:
+            sampler_type = 'mcmc'
+        elif has_ns:
+            sampler_type = 'ns'
+        else:
+            raise ValueError('No sampling results found. Run MCMC or nested sampling first')
+    elif args.sampler == 'mcmc':
+        if not has_mcmc:
+            raise ValueError('No MCMC results found. Run MCMC or use NS results with --sampler=ns')
+        sampler_type = 'mcmc'
+    elif args.sampler == 'ns':
+        if not has_ns:
+            raise ValueError('No NS results found. Run NS or use MCMC results with --sampler=mcmc')
+        sampler_type = 'ns'
+    else:
+        raise ValueError('Invalid sampler {}. Must be one of "auto", "mcmc" or "ns"'.format(args.sampler))
+
+    return sampler_type
+
+
 def derive(args):
     """Derive physical parameters from posterior samples
 
@@ -446,16 +576,17 @@ def derive(args):
                             "{}_radvel.stat".format(conf_base))
     status = load_status(statfile)
 
-    msg = "Multiplying mcmc chains by physical parameters for {}".format(
+    msg = "Multiplying mcmc or nested sampling chains by physical parameters for {}".format(
         conf_base
     )
     print(msg)
 
-    assert status.getboolean('mcmc', 'run'), "Must run MCMC before making tables"
+    sampler_type = _pick_sampler(args, status)
 
     P, post = radvel.utils.initialize_posterior(config_file)
-    post = radvel.posterior.load(status.get('fit', 'postfile'))
-    chains = pd.read_csv(status.get('mcmc', 'chainfile'))
+    postfile = status.get(sampler_type, 'postfile')
+    post = radvel.posterior.load(postfile)
+    chains = pd.read_csv(status.get(sampler_type, 'chainfile'))
 
     try:
         mstar = np.random.normal(
@@ -540,8 +671,6 @@ values. Interpret posterior with caution.".format(num_nan, nan_perc))
     quantiles.to_csv(csvfn, columns=outcols)
 
     # saved derived paramters to posterior file
-    postfile = os.path.join(args.outputdir,
-                            '{}_post_obj.pkl'.format(conf_base))
     post.derived = quantiles[outcols]
     post.writeto(postfile)
     savestate['quantfile'] = os.path.relpath(csvfn)
@@ -573,13 +702,27 @@ def report(args):
     if 'ic_compare' in status.keys():
         status['ic_compare']['ic'] = status['ic_compare']['ic'].replace('-inf', '-np.inf')
 
+    sampler_type = _pick_sampler(args, status)
+
     P, post = radvel.utils.initialize_posterior(config_file)
-    post = radvel.posterior.load(status.get('fit', 'postfile'))
-    chains = pd.read_csv(status.get('mcmc', 'chainfile'))
-    minafactor = status.get('mcmc', 'minafactor')
-    maxarchange = status.get('mcmc', 'maxarchange')
-    maxgr = status.get('mcmc', 'maxgr')
-    mintz = status.get('mcmc', 'mintz')
+
+    if sampler_type == 'mcmc':
+        minafactor = status.get('mcmc', 'minafactor')
+        maxarchange = status.get('mcmc', 'maxarchange')
+        maxgr = status.get('mcmc', 'maxgr')
+        mintz = status.get('mcmc', 'mintz')
+
+    elif sampler_type == 'ns':
+        minafactor = maxarchange = maxgr = mintz = None
+    else:
+        raise ValueError(
+            "Got an unexpected sampler_type {}. Please report this error on GitHub".format(
+                sampler_type
+            )
+        )
+    chains = pd.read_csv(status.get(sampler_type, 'chainfile'))
+    post = radvel.posterior.load(status.get(sampler_type, 'postfile'))
+
     if 'derive' in status.sections() and status.getboolean('derive', 'run'):
         dchains = pd.read_csv(status.get('derive', 'chainfile'))
         chains = chains.join(dchains, rsuffix='_derived')

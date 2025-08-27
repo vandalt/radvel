@@ -1,16 +1,18 @@
 import sys
 import copy
 import warnings
+import time
 import types
+import pytest
 
 import radvel
 import radvel.driver
+from radvel.nested_sampling import BACKENDS
 import numpy as np
 import scipy
 import radvel.prior
 
 warnings.simplefilter('ignore')
-
 
 class _args(types.SimpleNamespace):
     outputdir = '/tmp/'
@@ -37,9 +39,14 @@ class _args(types.SimpleNamespace):
     proceed = False
     proceedname = None
     headless=False
+    sampler = 'auto'
+    run_kwargs = None
+    sampler_kwargs = None
+    overwrite = False
+    sampler = 'ultranest'
 
 
-def _standard_run(setupfn, arguments):
+def _standard_run(setupfn, arguments, do_ns=True, do_mcmc=True):
     """
     Run through all of the standard steps
     """
@@ -48,7 +55,17 @@ def _standard_run(setupfn, arguments):
     args.setupfn = setupfn
 
     radvel.driver.fit(args)
-    radvel.driver.mcmc(args)
+
+    if do_mcmc:
+        radvel.driver.mcmc(args)
+    if do_ns:
+        radvel.driver.nested_sampling(args)
+    if not (do_mcmc or do_ns):
+        raise ValueError('One of do_mcmc or do_ns must be true to run this test.')
+
+    # For ns step, sampler gives the library
+    # For subsequent steps, sampler should be mcmc, ns or auto
+    args.sampler = 'auto'
     radvel.driver.derive(args)
 
     args.type = ['trend', 'jit', 'e', 'nplanets', 'gp']
@@ -58,7 +75,9 @@ def _standard_run(setupfn, arguments):
     args.type = ['params', 'priors', 'rv', 'ic_compare', 'derived', 'crit']
     radvel.driver.tables(args)
 
-    args.type = ['rv', 'corner', 'auto', 'trend', 'derived']
+    args.type = ['rv', 'corner', 'derived']
+    if do_mcmc:
+        args.type += ['auto', 'trend']
     args.plotkw = {'highlight_last': True, 'show_rms': True}
     radvel.driver.plots(args)
 
@@ -67,28 +86,78 @@ def _standard_run(setupfn, arguments):
     radvel.driver.report(args)
 
 
-def test_k2(setupfn='example_planets/epic203771098.py'):
+def test_k2(tmp_path, setupfn='example_planets/epic203771098.py'):
     """
     Run through K2-24 example
     """
     args = _args()
+    # Use tmp_path fixture to isolate from previous runs
+    args.outputdir = str(tmp_path)
     args.setupfn = setupfn
     _standard_run(setupfn, args)
+
+def test_mcmc_proceed(tmp_path, setupfn='example_planets/epic203771098.py'):
+    """
+    Run through K2-24 example and try to resume
+    """
+    args = _args()
+    # Use tmp_path fixture to isolate from previous runs
+    args.outputdir = str(tmp_path)
+    args.setupfn = setupfn
+    # We always re-sample: ensure that standard run with MCMC only works
+    _standard_run(setupfn, args, do_ns=False)
 
     # set the proceed flag and continue
     args.proceed = True
     radvel.driver.mcmc(args)
 
     args.ensembles = 1
-    try:
+    with pytest.raises(ValueError, match='nensembles, nwalkers, and'):
         radvel.driver.mcmc(args)
-    except ValueError:  # expected error when changing number of ensembles with proceed flag
-        pass
 
     args.serial = True
     args.proceed = False
     radvel.driver.mcmc(args)
 
+
+@pytest.mark.parametrize("sampler", list(BACKENDS.keys()))
+def test_ns_proceed(tmp_path, sampler, setupfn='example_planets/epic203771098.py'):
+    """
+    Run through K2-24 example and try to resume
+    """
+    args = _args()
+    args.sampler = sampler
+    # Use tmp_path fixture to isolate from previous runs
+    args.outputdir = str(tmp_path)
+    args.setupfn = setupfn
+    # We always re-sample: ensure that standard run with NS only works
+    _standard_run(setupfn, args, do_mcmc=False)
+
+    args.sampler = sampler  # Need to set sampler again because standard_run sets to mcmc/ns
+
+    # Test that overwrites=False works
+    with pytest.raises(FileExistsError, match="Results file"):
+        radvel.driver.nested_sampling(args)
+
+    # Test that resume is not accepted for sampler/run kwargs
+    args.overwrite = True
+    if sampler in ['ultranest', 'nautilus']:
+        args.sampler_kwargs = "resume=True"
+    else:
+        args.run_kwargs = "resume=True"
+    with pytest.raises(ValueError, match="'resume' not supported"):
+        radvel.driver.nested_sampling(args)
+    args.overwrite = False
+    args.sampler_kwargs = None
+    args.run_kwargs = None
+
+    # Test that resume is not too long (that it actually resumes)
+    args.proceed = True
+    start = time.time()
+    radvel.driver.nested_sampling(args)
+    end = time.time()
+    time_minutes = (start - end) / 60
+    assert time_minutes < 1.0
 
 def test_hd(setupfn='example_planets/HD164922.py'):
     """
@@ -227,11 +296,8 @@ def test_kernels():
             sys.stdout.write("passed #2\n")
 
 
-def test_priors():
-    """
-    Test basic functionality of all Priors
-    """
-
+@pytest.fixture
+def params_and_vector_for_priors():
     params = radvel.Parameters(1, 'per tc secosw sesinw logk')
     params['per1'] = radvel.Parameter(10.0)
     params['tc1'] = radvel.Parameter(0.0)
@@ -240,6 +306,15 @@ def test_priors():
     params['logk1'] = radvel.Parameter(1.5)
 
     vector = radvel.Vector(params)
+
+    return params, vector
+
+def test_priors(params_and_vector_for_priors):
+    """
+    Test basic functionality of all Priors
+    """
+
+    params, vector = params_and_vector_for_priors
 
     testTex = r'Delta Function Prior on $\sqrt{e}\cos{\omega}_{b}$'
 
@@ -283,6 +358,137 @@ def test_priors():
             "Prior output does not match expectation"
 
 
+prior_scipy_list = [
+    (radvel.prior.Gaussian("per1", 9.9, 0.1), scipy.stats.norm(9.9, 0.1)),
+    (radvel.prior.HardBounds("per1", 1.0, 9.0), scipy.stats.uniform(1.0, 9.0 - 1.0)),
+    (radvel.prior.Jeffreys("per1", 0.1, 100.0), scipy.stats.loguniform(0.1, 100.0)),
+    (radvel.prior.NumericalPrior(["sesinw1"], np.random.randn(1, 5000000)), scipy.stats.norm(0, 1),),
+    (
+        radvel.prior.UserDefinedPrior(
+            ["per1"],
+            lambda x: scipy.stats.lognorm.pdf(x, 1e-1, 1e1),
+            "lognorm",
+            transform_func=lambda x: scipy.stats.lognorm.ppf(x, 1e-1, 1e1),
+        ),
+        scipy.stats.lognorm(1e-1, 1e1),
+    ),
+]
+# Repeat for numerical prior to make sure staistically robust
+prior_scipy_list += 10 * [
+    (radvel.prior.ModifiedJeffreys("per1", 0.0, 100.0, -0.1), scipy.stats.loguniform(0.0 + 0.1, 100.0 + 0.1, loc=-0.1),)
+]
+@pytest.mark.parametrize("prior,scipy_dist", prior_scipy_list)
+def test_prior_transforms(prior, scipy_dist):
+
+    rng = np.random.default_rng(3245)
+    u = rng.uniform(size=100)
+
+
+    expected_val = scipy_dist.ppf(u)
+    np.testing.assert_allclose(
+        prior.transform(u),
+        expected_val,
+        # Higher tolerance for numerical prior: interoplation of a histogram, otherwise use default rtol=1e-7
+        atol=1.5e-2 if isinstance(prior, radvel.prior.NumericalPrior) else 0.0,
+        err_msg=f"Prior transform failed for {prior}")
+
+def test_userdefined_no_transform():
+    rng = np.random.default_rng(3245)
+    u = rng.uniform(size=100)
+
+    with pytest.raises(TypeError):
+        radvel.prior.UserDefinedPrior(
+            ["per1"],
+            lambda x: scipy.stats.lognorm.pdf(x, 1e-1, 1e1),
+            "lognorm",
+        ).transform(u)
+
+@pytest.mark.parametrize(
+    "prior",
+    [
+        radvel.prior.EccentricityPrior(1),
+        radvel.prior.PositiveKPrior(1),
+        radvel.prior.SecondaryEclipsePrior(1, 5.0, 10.0),
+        radvel.prior.InformativeBaselinePrior("per1", 5.0, duration=1.0),
+    ],
+)
+def test_priors_no_transform(prior):
+    rng = np.random.default_rng(3245)
+    u = rng.uniform(size=100)
+
+    with pytest.raises(NotImplementedError):
+        prior.transform(u)
+
+
+@pytest.fixture
+def likelihood_for_pt(params_and_vector_for_priors):
+    params = params_and_vector_for_priors[0]
+    t = np.linspace(0, 10, num=100)
+    vel = np.ones_like(t)
+    errvel = np.ones_like(t) * 0.1
+    mod = radvel.RVModel(params)
+    mod.params['dvdt'] = radvel.Parameter(value=-0.02)
+    mod.params['curv'] = radvel.Parameter(value=0.01)
+    like = radvel.likelihood.RVLikelihood(mod, t, vel, errvel)
+    like.params['gamma'] = radvel.Parameter(value=0.1, vary=False)
+    like.params['jit'] = radvel.Parameter(value=1.0)
+    like.params['secosw1'].vary = False
+    like.params['sesinw1'].vary = False
+    like.params['per1'].vary = False
+    like.params['tc1'].vary = False
+    return like
+
+
+def test_prior_transform_all_params(likelihood_for_pt):
+
+    # This should work
+    post = radvel.posterior.Posterior(likelihood_for_pt)
+    post.priors += [radvel.prior.Gaussian( 'dvdt', 0, 1.0)]
+    post.priors += [radvel.prior.HardBounds( 'curv', 0.0, 1.0)]
+    post.priors += [radvel.prior.ModifiedJeffreys( 'jit', 0, 10.0, -0.1)]
+    post.priors += [radvel.prior.Gaussian( 'logk1', np.log(5), 5)]
+
+    post.check_proper_priors()
+
+    post = radvel.posterior.Posterior(likelihood_for_pt)
+    post.priors += [radvel.prior.Gaussian( 'dvdt', 0, 1.0)]
+    post.priors += [radvel.prior.HardBounds( 'curv', 0.0, 1.0)]
+    post.priors += [radvel.prior.ModifiedJeffreys( 'jit', 0, 10.0, -0.1)]
+    with pytest.raises(ValueError, match="No prior"):
+        post.check_proper_priors()
+
+    post = radvel.posterior.Posterior(likelihood_for_pt)
+    post.priors += [radvel.prior.Gaussian( 'dvdt', 0, 1.0)]
+    post.priors += [radvel.prior.HardBounds( 'curv', 0.0, 1.0)]
+    post.priors += [radvel.prior.ModifiedJeffreys( 'jit', 0, 10.0, -0.1)]
+    post.priors += [radvel.prior.Gaussian( 'logk1', np.log(5), 5)]
+    post.priors += [radvel.prior.Gaussian( 'logk1', 8, 5)]
+    with pytest.raises(ValueError, match="Multiple prior transforms"):
+        post.check_proper_priors()
+
+
+
+def test_prior_transform_order(likelihood_for_pt):
+
+    post = radvel.posterior.Posterior(likelihood_for_pt)
+    post.priors += [radvel.prior.Gaussian( 'dvdt', 0, 1.0)]
+    post.priors += [radvel.prior.HardBounds( 'curv', 0.0, 1.0)]
+    post.priors += [radvel.prior.ModifiedJeffreys( 'jit', 0, 10.0, -0.1)]
+    post.priors += [radvel.prior.Gaussian( 'logk1', np.log(5), 5)]
+
+    rng = np.random.default_rng(3245)
+    u = rng.uniform(size=(len(post.vary_params), 100))
+    p = post.prior_transform(u)
+
+    prior_param_names = [prior.param for prior in post.priors]
+
+    assert prior_param_names != post.name_vary_params(), "Parameters and priors should have different order for this test"
+
+    for prior in post.priors:
+        param_name = prior.param
+        param_ind = post.name_vary_params().index(param_name)
+        np.testing.assert_allclose(prior.transform(u[param_ind]), p[param_ind], err_msg="Prior transform failed for {}".format(prior))
+
 def test_kepler():
     """
     Profile and test C-based Kepler solver
@@ -315,7 +521,6 @@ def test_model_comp(setupfn='example_planets/HD164922.py'):
         raise Exception("Unexpected result from model_comp.")
     except AssertionError:  # expected result
         return
-
 
 if __name__ == '__main__':
     #test_k2()

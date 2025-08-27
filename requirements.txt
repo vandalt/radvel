@@ -15,3 +15,6 @@ h5py>=3.9.0
 dill
 ipython
 coveralls==3.2.0
+ultranest
+# TODO: Fix conflicts between scipy, numpy and this
+tables

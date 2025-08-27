@@ -2,7 +2,7 @@
 import warnings
 
 import numpy as np
-from scipy.stats import gaussian_kde
+from scipy.stats import gaussian_kde, norm
 
 from radvel import model
 from radvel import orbit
@@ -10,6 +10,12 @@ from radvel import utils
 
 
 class Prior(object):
+
+    # By default, priors are not extra constraints.
+    # They should specify if they are.
+    # Relevant only for nested sampling.
+    extra_constraint = False
+
     def __repr__(self):
         return "Generic Prior"
 
@@ -33,6 +39,9 @@ class Gaussian(Prior):
     def __call__(self, params, vector):
         x = vector.vector[vector.indices[self.param]][0]
         return -0.5 * ((x - self.mu) / self.sigma)**2 - 0.5*np.log((self.sigma**2)*2.*np.pi)
+
+    def transform(self, u):
+        return norm.ppf(u, loc=self.mu, scale=self.sigma)
 
     def __repr__(self):
         s = "Gaussian prior on {}, mu={}, sigma={}".format(
@@ -63,9 +72,11 @@ class EccentricityPrior(Prior):
             the prior will only be applied to the specified planets.
         upperlims (float or list of floats): List of eccentricity upper limits to assign
             to each of the planets. If a float is given then all planets must have
-            eccentricities less then this value. If a list of floats is given then
+            eccentricities less than this value. If a list of floats is given then
             each planet can have a different eccentricity upper limit.
     """
+
+    extra_constraint = True
 
     def __repr__(self):
         msg = ""
@@ -101,7 +112,7 @@ class EccentricityPrior(Prior):
 upper limits must match number of planets."
             self.upperlims = upperlims
 
-    def __call__(self, params, vector):
+    def __call__(self, params, vector, finite=False):
         def _getpar(key, num_planet):
             return vector.vector[vector.indices['{}{}'.format(key, num_planet)]][0]
 
@@ -123,9 +134,16 @@ upper limits must match number of planets."
                 ecc = secc**2
 
             if ecc > self.upperlims[i] or ecc < 0.0:
-                return -np.inf
+                return -np.inf if not finite else -1e100
 
         return -np.sum(np.log(self.upperlims))
+
+    def transform(self, u):
+        raise NotImplementedError(
+            "EccentricityPrior places an extra_constraint on existing parameters. "
+            "It will be called by 'extra_likelihood' and not as a prior transform. "
+            "If your basis uses eccentricity directly and your only constraint is U(0, 1), use HardBounds."
+        )
 
 
 class PositiveKPrior(Prior):
@@ -140,6 +158,8 @@ class PositiveKPrior(Prior):
             planet is positive
     """
 
+    extra_constraint = True
+
     def __repr__(self):
         return "K constrained to be > 0"
 
@@ -149,7 +169,7 @@ class PositiveKPrior(Prior):
     def __init__(self, num_planets):
         self.num_planets = num_planets
 
-    def __call__(self, params, vector):
+    def __call__(self, params, vector, finite=False):
         def _getpar(key, num_planet):
             return vector.vector[vector.indices['{}{}'.format(key, num_planet)]][0]
 
@@ -160,8 +180,15 @@ class PositiveKPrior(Prior):
                 k = np.exp(_getpar('logk', num_planet))
 
             if k < 0.0:
-                return -np.inf
+                return -np.inf if not finite else -1e100
         return 0
+
+    def transform(self, u):
+        raise NotImplementedError(
+            "PositiveKPrior places an extra_constraint on existing parameters. "
+            "It will be called by 'extra_likelihood' and not as a prior transform. "
+            "If your only constraint for K is (0, 1), use HardBounds (or a log-scale prior)"
+        )
 
 
 class HardBounds(Prior):
@@ -202,6 +229,11 @@ class HardBounds(Prior):
             else:
                 return 0
 
+    def transform(self, u):
+        if not self.finite:
+            raise ValueError("Prior transform for HardBounds requires finite boundaries")
+        return self.minval + u * (self.maxval - self.minval)
+
     def __repr__(self):
         s = "Bounded prior on {}, min={}, max={}".format(
             self.param, self.minval, self.maxval
@@ -232,6 +264,8 @@ class SecondaryEclipsePrior(Prior):
             Should be in the same units as the timestamps of your data.
         ts_err (float): Uncertainty on secondary eclipse time
     """
+
+    extra_constraint = True
 
     def __repr__(self):
         msg = ""
@@ -271,6 +305,13 @@ class SecondaryEclipsePrior(Prior):
 
         return penalty
 
+    def transform(self, u):
+        raise NotImplementedError(
+            "SecondaryEclipsePrior places an extra_constraint on existing parameters. "
+            "It will be called by 'extra_likelihood' and not as a prior transform. "
+            "If your only constraint for K is (0, 1), use HardBounds (or a log-scale prior)"
+        )
+
 
 class Jeffreys(Prior):
     """Jeffrey's prior
@@ -301,6 +342,10 @@ class Jeffreys(Prior):
             return -np.inf
         else:
             return np.log(self.normalization) - np.log(x)
+
+    def transform(self, u):
+        return self.minval * np.exp(u * np.log(self.maxval / self.minval))
+
     def __repr__(self):
         s = "Jeffrey's prior on {}, min={}, max={}".format(
             self.param, self.minval, self.maxval
@@ -353,6 +398,10 @@ class ModifiedJeffreys(Prior):
             return -np.inf
         else:
             return np.log(self.normalization) - np.log(x-self.kneeval)
+
+    def transform(self, u):
+        return self.kneeval + (self.minval - self.kneeval) * np.exp(u / self.normalization)
+
     def __repr__(self):
         s = "Modified Jeffrey's prior on {}, knee={}, min={}, max={}".format(
             self.param, self.kneeval, self.minval, self.maxval
@@ -395,6 +444,8 @@ class NumericalPrior(Prior):
             (# of elements in param_list, # of data points).
         bw_method (str, scalar, or callable [optional]): see
             scipy.stats.gaussian_kde
+        bins (int [optional]): number of bins for the histogram when creating
+            nested sampling prior transform. Defaults to 100.
 
     Note: the larger the input array of values, the longer it will
     take for calls to this prior to be evaluated. Consider thinning
@@ -402,9 +453,13 @@ class NumericalPrior(Prior):
 
     """
 
-    def __init__(self, param_list, values, bw_method=None):
+    def __init__(self, param_list, values, bw_method=None, bins='auto'):
         self.param_list = param_list
         self.pdf_estimate = gaussian_kde(values, bw_method=bw_method)
+        # Ref (and source code) for the histogram: https://johannesbuchner.github.io/UltraNest/priors.html#Non-analytic-priors
+        hist, bin_edges = np.histogram(values, bins=bins)
+        self.hist_cumulative = np.cumsum(hist / hist.sum())
+        self.bin_middle = (bin_edges[:-1] + bin_edges[1:]) / 2
 
     def __call__(self, params, vector):
         x = []
@@ -412,6 +467,9 @@ class NumericalPrior(Prior):
             x.append(vector.vector[vector.indices[param]][0])
         val = np.log(self.pdf_estimate(x))
         return val[0]
+
+    def transform(self, u):
+        return np.interp(u, self.hist_cumulative, self.bin_middle)
 
     def __repr__(self):
         s = "Numerical prior on {}".format(
@@ -449,6 +507,12 @@ class UserDefinedPrior(Prior):
         func (function): a Python function that takes in  a list
             of values (ordered as in ``param_list``), and returns
             the corresponding log-value of a pdf.
+        transform_func (function): a Python function that takes a unit cube
+            with dimension equal to the number of parameters in
+            param_list, and returns samples from the prior.
+            This is usually the inverse-cdf of func.
+            Set to None by default. In that case the prior cannot
+            be used for Nested Sampling.
         tex_rep (str): TeX-readable string representation of
             this prior, to be passed into radvel report and
             plotting code.
@@ -467,9 +531,10 @@ class UserDefinedPrior(Prior):
         entire parameter space must give a probability of 1.
     """
 
-    def __init__(self, param_list, func, tex_rep):
+    def __init__(self, param_list, func, tex_rep, transform_func=None):
         self.param_list = param_list
         self.func = func
+        self.transform_func = transform_func
         self.tex_rep = tex_rep
 
     def __call__(self, params, vector):
@@ -477,6 +542,11 @@ class UserDefinedPrior(Prior):
         for param in self.param_list:
             x.append(vector.vector[vector.indices[param]][0])
         return self.func(x)
+
+    def transform(self, u):
+        if self.transform_func is None:
+            raise TypeError("transform_func is None. Set it to a function before callings transform().")
+        return self.transform_func(u)
 
     def __repr__(self):
         s = "User-defined prior on {}".format(
@@ -532,3 +602,6 @@ class InformativeBaselinePrior(Prior):
         else:
             return np.log((self.baseline+self.duration)/per)
 
+    def transform(self, u):
+        # TODO: Implement for this distribution
+        raise NotImplementedError("Prior transform not yet implemented InformativeBaselinePrior")
