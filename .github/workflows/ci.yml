@@ -41,7 +41,7 @@ jobs:
         else
           pip install --no-cache-dir -r requirements.txt
         fi
-        pip install coveralls nose
+        pip install coveralls nose pytest
     
     - name: Build and test
       run: |
