@@ -1,10 +1,10 @@
-name: CI (Simple)
+name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
   tags:
     - 'v*'
 
