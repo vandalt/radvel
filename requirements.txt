@@ -1,6 +1,6 @@
 cython>=0.23
-numpy>=1.26.0
-scipy>=1.11.0
+numpy
+scipy
 matplotlib>=1.5.3
 corner>=2.0
 astropy>=1.1.2
