@@ -38,7 +38,7 @@ class _args(types.SimpleNamespace):
     savename = 'rawchains.h5'
     proceed = False
     proceedname = None
-    headless=False
+    headless=True
     sampler = 'auto'
     run_kwargs = None
     sampler_kwargs = None
@@ -221,6 +221,11 @@ def test_celerite(setupfn='example_planets/k2-131_celerite.py'):
     """
     Check celerite GP fit
     """
+    # Skip if celerite is not available
+    if not radvel.gp._has_celerite:
+        import pytest
+        pytest.skip("celerite not available")
+    
     args = _args()
     args.setupfn = setupfn
 
@@ -286,6 +291,10 @@ def test_kernels():
     """
     Test basic functionality of all standard GP kernels
     """
+    # Skip if celerite is not available (needed for Celerite kernel)
+    if not radvel.gp._has_celerite:
+        import pytest
+        pytest.skip("celerite not available")
 
     kernel_list = radvel.gp.KERNELS
 
@@ -423,12 +432,15 @@ def test_userdefined_no_transform():
     rng = np.random.default_rng(3245)
     u = rng.uniform(size=100)
 
-    with pytest.raises(TypeError):
+    try:
         radvel.prior.UserDefinedPrior(
             ["per1"],
             lambda x: scipy.stats.lognorm.pdf(x, 1e-1, 1e1),
             "lognorm",
         ).transform(u)
+        assert False, "Expected TypeError"
+    except TypeError:
+        pass
 
 def test_priors_no_transform():
     rng = np.random.default_rng(3245)

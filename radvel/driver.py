@@ -391,7 +391,7 @@ def nested_sampling(args):
                  'ns_outdir': os.path.relpath(backend_loc),
                  'summaryfile': os.path.relpath(saveto),
                  }
-    savestate = savestate | sampler_kwargs | run_kwargs
+    savestate = {**savestate, **sampler_kwargs, **run_kwargs}
     save_status(statfile, 'ns', savestate)
 
 
