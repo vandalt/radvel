@@ -18,6 +18,14 @@ Install ``radvel`` using pip:
 
     $ pip install radvel
 
+**Note:** If you encounter compilation issues on macOS (especially with newer Xcode versions), 
+consider using conda for problematic dependencies:
+
+.. code-block:: bash
+
+    $ conda install pytables h5py
+    $ pip install radvel
+
 Make sure that ``pdflatex`` is installed and in your system's path. 
 You can get ``pdflatex`` by installing the `TexLive package
 <https://www.tug.org/texlive/>`_ or other LaTeX distributions.
@@ -25,12 +33,56 @@ By default it is expected to be in your system's path, but you may
 specify a path to pdflatex using the ``--latex-compiler``
 option at the ``radvel report`` step.
 
+Build System
+++++++++++++
+
+``radvel`` uses a modern build system based on `pyproject.toml` and `hatchling` instead of the deprecated `setuptools`. 
+This provides faster builds and better dependency management. The build system automatically handles:
+
+- Cython extensions compilation
+- Python version compatibility (3.8+)
+- Modern dependency resolution
+- Automatic version detection from source code
+
 If you are running OSX, and want to perform Gaussian Process likelihood
 computations in parallel, you may need to perform some additional
 installation steps. See :ref:`OSX-multiprocessing`.
 
+Development Installation
++++++++++++++++++++++++
+
+To install ``radvel`` in development mode for contributing to the codebase:
+
+.. code-block:: bash
+
+    $ git clone https://github.com/California-Planet-Search/radvel.git
+    $ cd radvel
+    
+    # Install problematic dependencies via conda (recommended for macOS)
+    $ conda install pytables h5py
+    
+    # Install radvel in development mode
+    $ pip install -e .
+
 If you wish to use the celerite GP kernels you will also need to install celerite.
 See the `celerite install instructions <http://celerite.readthedocs.io/en/stable/python/install/#using-pip>`_.
+
+Continuous Integration
++++++++++++++++++++++
+
+``radvel`` uses GitHub Actions for continuous integration, testing on multiple Python versions (3.8, 3.9, 3.11, 3.12).
+The CI system automatically:
+
+- Runs tests on all supported Python versions
+- Builds and validates the package
+- Generates coverage reports
+- Publishes to PyPI on releases
+
+For local testing, you can run the test suite with:
+
+.. code-block:: bash
+
+    $ nosetests radvel --with-coverage --cover-package=radvel
 
 To use nested sampling packages other than the default `UltraNest <https://johannesbuchner.github.io/UltraNest/index.html>`_ sampler, you will also need to install them. Other samplers implemented in Radvel are:
 

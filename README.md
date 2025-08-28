@@ -21,6 +21,33 @@ Written by BJ Fulton, Erik Petigura, Sarah Blunt, and Evan Sinukoff. [Fulton et 
 Please cite the [original publication](http://adsabs.harvard.edu/abs/2018PASP..130d4504F) and the following DOI if you make use of this software in your research.
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.580821.svg)](https://doi.org/10.5281/zenodo.580821)
 
+## Installation
+
+### Quick Install
+
+```bash
+pip install radvel
+```
+
+### Development Install
+
+```bash
+git clone https://github.com/California-Planet-Search/radvel.git
+cd radvel
+
+# Install problematic dependencies via conda (recommended for macOS)
+conda install pytables h5py
+
+# Install in development mode
+pip install -e .
+```
+
+### System Requirements
+
+- **Python**: 3.8, 3.9, 3.11, 3.12
+- **LaTeX**: Required for report generation (install TexLive or similar)
+- **macOS users**: Consider using conda for `pytables` and `h5py` to avoid compilation issues
+
 ## Documentation
 
 Documentation is available [here](http://radvel.readthedocs.io/)
