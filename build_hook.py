@@ -20,7 +20,17 @@ class CustomBuildHook(BuildHookInterface):
         # Import Cython here to avoid import issues during build
         try:
             from Cython.Build import cythonize
-            from setuptools import Extension
+            
+            # Try to import Extension from setuptools, fallback to distutils
+            try:
+                from setuptools import Extension
+            except ImportError:
+                try:
+                    from distutils.core import Extension
+                except ImportError:
+                    print("Warning: Neither setuptools nor distutils available, skipping extension compilation")
+                    build_data['ext_modules'] = []
+                    return
             
             extensions = [
                 Extension(
@@ -32,10 +42,14 @@ class CustomBuildHook(BuildHookInterface):
             
             # Cythonize the extensions
             build_data['ext_modules'] = cythonize(extensions)
+            print("Successfully compiled Cython extensions")
             
-        except ImportError:
+        except ImportError as e:
             # Fallback if Cython is not available
-            print("Warning: Cython not available, skipping extension compilation")
+            print(f"Warning: Cython not available ({e}), skipping extension compilation")
+            build_data['ext_modules'] = []
+        except Exception as e:
+            print(f"Error during Cython compilation: {e}")
             build_data['ext_modules'] = []
         
         # Add data files
