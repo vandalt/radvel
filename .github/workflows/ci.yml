@@ -41,7 +41,7 @@ jobs:
         else
           pip install --no-cache-dir -r requirements.txt
         fi
-        pip install coveralls nose pytest
+        pip install coveralls pytest pytest-cov coverage
     
     - name: Install build dependencies
       run: |
@@ -51,13 +51,14 @@ jobs:
       run: |
         python setup.py build_ext -i
         pip install -e .
-        nosetests radvel --with-coverage --cover-package=radvel
+        pytest radvel --cov=radvel --cov-report=term-missing
     
     - name: Upload coverage to Coveralls
       if: matrix.python-version == '3.8'
       env:
         COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
       run: |
+        coverage xml
         coveralls
 
   build-and-deploy:
