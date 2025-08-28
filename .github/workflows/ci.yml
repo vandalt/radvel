@@ -45,7 +45,6 @@ jobs:
     
     - name: Build and test
       run: |
-        python setup.py build_ext -i
         pip install --no-cache-dir --no-deps .
         nosetests radvel --with-coverage --cover-package=radvel
     

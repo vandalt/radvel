@@ -1,2 +1,60 @@
 [build-system]
-requires = ["setuptools", "wheel", "Cython", "pybind11", "numpy"]
+requires = ["hatchling", "Cython", "pybind11", "numpy"]
+build-backend = "hatchling.build"
+
+[project]
+name = "radvel"
+dynamic = ["version"]
+description = "General Toolkit for Modeling Radial Velocities"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [
+    {name = "BJ Fulton, Erik Petigura, Sarah Blunt, Evan Sinukoff"}
+]
+license = {file = "LICENSE"}
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "cython>=0.23",
+    "numpy",
+    "scipy",
+    "matplotlib>=1.5.3",
+    "corner>=2.0",
+    "astropy>=1.1.2",
+    "emcee>=3.0.2",
+    "pandas>=0.20.0",
+    "nbsphinx==0.9.3",
+    "jupyter_client>=5.2.4",
+    "ipykernel>=4.10.0",
+    "jinja2>=2.9",
+    "python-dateutil>=2.5.0",
+    "h5py>=3.9.0",
+    "dill",
+    "ipython",
+    "ultranest",
+    "tables",
+]
+
+[project.scripts]
+radvel = "radvel.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/California-Planet-Search/radvel"
+Documentation = "http://radvel.readthedocs.io/"
+Repository = "https://github.com/California-Planet-Search/radvel"
+
+[tool.hatch.build.targets.wheel]
+packages = ["radvel"]
+
+[tool.hatch.build.hooks.custom]
+path = "build_hook.py"
