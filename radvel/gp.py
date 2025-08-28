@@ -133,7 +133,7 @@ class SqExpKernel(Kernel):
         length = self.hparams['gp_length'].value
         amp = self.hparams['gp_amp'].value
 
-        K = amp**2 * scipy.exp(-self.dist/(length**2))
+        K = amp**2 * np.exp(-self.dist/(length**2))
 
         self.covmatrix = K
         # add errors along the diagonal
@@ -220,7 +220,7 @@ class PerKernel(Kernel):
         amp = self.hparams['gp_amp'].value
         per = self.hparams['gp_per'].value
 
-        K = amp**2 * scipy.exp(-np.sin(np.pi*self.dist/per)**2. / (2.*length**2))
+        K = amp**2 * np.exp(-np.sin(np.pi*self.dist/per)**2. / (2.*length**2))
         self.covmatrix = K
         # add errors along the diagonal
         try:
@@ -316,8 +316,8 @@ class QuasiPerKernel(Kernel):
         explength = self.hparams['gp_explength'].value
 
         K = np.array(amp**2
-                     * scipy.exp(-self.dist_se/(explength**2))
-                     * scipy.exp((-np.sin(np.pi*self.dist_p/per)**2.) / (2.*perlength**2)))
+                                 * np.exp(-self.dist_se/(explength**2))
+            * np.exp((-np.sin(np.pi*self.dist_p/per)**2.) / (2.*perlength**2)))
 
         self.covmatrix = K
 
