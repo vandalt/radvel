@@ -443,6 +443,13 @@ def test_priors_no_transform():
     rng = np.random.default_rng(3245)
     u = rng.uniform(size=100)
 
+    # Create a prior that doesn't have a transform method
+    prior = radvel.prior.UserDefinedPrior(
+        ["per1"],
+        lambda x: 1.0,  # Simple function
+        "test"
+    )
+    
     with pytest.raises(NotImplementedError):
         prior.transform(u)
 

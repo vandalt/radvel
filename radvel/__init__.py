@@ -35,11 +35,20 @@ __package__ = __path__[0]
 
 MODULEDIR, filename = os.path.split(__file__)
 
-# For local development, check if we're in the source directory
-local_data_dir = os.path.join(os.path.dirname(os.path.dirname(MODULEDIR)), 'example_data')
-if os.path.isdir(local_data_dir):
-    DATADIR = local_data_dir
-else:
+# For local development, check multiple possible locations
+possible_dirs = [
+    os.path.join(os.path.dirname(os.path.dirname(MODULEDIR)), 'example_data'),  # Source directory
+    os.path.join(os.getcwd(), 'example_data'),  # Current working directory
+    os.path.join(os.path.dirname(os.path.dirname(__file__)), 'example_data'),  # File-based path
+]
+
+DATADIR = None
+for local_data_dir in possible_dirs:
+    if os.path.isdir(local_data_dir):
+        DATADIR = local_data_dir
+        break
+
+if DATADIR is None:
     # Fall back to installed package location
     DATADIR = os.path.join(sys.prefix, 'radvel_example_data')
     if not os.path.isdir(DATADIR):
