@@ -43,10 +43,14 @@ jobs:
         fi
         pip install coveralls nose pytest
     
+    - name: Install build dependencies
+      run: |
+        pip install Cython pybind11 setuptools wheel
+    
     - name: Build and test
       run: |
         python setup.py build_ext -i
-        pip install --no-cache-dir --no-deps .
+        pip install -e .
         nosetests radvel --with-coverage --cover-package=radvel
     
     - name: Upload coverage to Coveralls
