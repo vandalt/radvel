@@ -53,6 +53,9 @@ Homepage = "https://github.com/California-Planet-Search/radvel"
 Documentation = "http://radvel.readthedocs.io/"
 Repository = "https://github.com/California-Planet-Search/radvel"
 
+[tool.hatch.version]
+path = "radvel/__init__.py"
+
 [tool.hatch.build.targets.wheel]
 packages = ["radvel"]
 
