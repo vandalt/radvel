@@ -3,7 +3,7 @@ import os
 import sys
 from glob import glob
 
-import pytest
+# pytest is now the test runner, but we don't need to import it in test files
 import nbformat
 from nbconvert.preprocessors import ExecutePreprocessor
 
