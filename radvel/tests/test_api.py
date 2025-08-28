@@ -450,7 +450,7 @@ def test_priors_no_transform():
         "test"
     )
     
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(TypeError):
         prior.transform(u)
 
 
