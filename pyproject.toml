@@ -61,3 +61,16 @@ packages = ["radvel"]
 
 [tool.hatch.build.hooks.custom]
 path = "build_hook.py"
+
+[tool.pytest.ini_options]
+testpaths = ["radvel"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+    "ignore::UserWarning",
+    "ignore::RuntimeWarning",
+]
