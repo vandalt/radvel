@@ -34,17 +34,24 @@ __version__ = '1.5.0'
 __package__ = __path__[0]
 
 MODULEDIR, filename = os.path.split(__file__)
-DATADIR = os.path.join(sys.prefix, 'radvel_example_data')
-if not os.path.isdir(DATADIR):
-    warnings.warn("Could not find radvel_example_data directory in {}".format(sys.prefix),
-                  ImportWarning)
-    trydir = os.path.join(os.environ['HOME'], '.local', 'radvel_example_data')
-    if os.path.isdir(trydir):
-        warnings.warn("Found radvel_example_data in ~/.local", ImportWarning)
-        DATADIR = trydir
-    else:
-        warnings.warn("Failed to locate radvel_example_data directory. Example setup files will not work.",
+
+# For local development, check if we're in the source directory
+local_data_dir = os.path.join(os.path.dirname(os.path.dirname(MODULEDIR)), 'example_data')
+if os.path.isdir(local_data_dir):
+    DATADIR = local_data_dir
+else:
+    # Fall back to installed package location
+    DATADIR = os.path.join(sys.prefix, 'radvel_example_data')
+    if not os.path.isdir(DATADIR):
+        warnings.warn("Could not find radvel_example_data directory in {}".format(sys.prefix),
                       ImportWarning)
+        trydir = os.path.join(os.environ['HOME'], '.local', 'radvel_example_data')
+        if os.path.isdir(trydir):
+            warnings.warn("Found radvel_example_data in ~/.local", ImportWarning)
+            DATADIR = trydir
+        else:
+            warnings.warn("Failed to locate radvel_example_data directory. Example setup files will not work.",
+                          ImportWarning)
 
 # tell python how to pickle methods and fucntions; necessary for running MCMC in multi-
 #  threaded mode.

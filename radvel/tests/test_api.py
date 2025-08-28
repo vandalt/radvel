@@ -320,7 +320,6 @@ def test_kernels():
             sys.stdout.write("passed #2\n")
 
 
-@pytest.fixture
 def params_and_vector_for_priors():
     params = radvel.Parameters(1, 'per tc secosw sesinw logk')
     params['per1'] = radvel.Parameter(10.0)
@@ -448,9 +447,8 @@ def test_priors_no_transform():
         prior.transform(u)
 
 
-@pytest.fixture
-def likelihood_for_pt(params_and_vector_for_priors):
-    params = params_and_vector_for_priors[0]
+def likelihood_for_pt():
+    params, _ = params_and_vector_for_priors()
     t = np.linspace(0, 10, num=100)
     vel = np.ones_like(t)
     errvel = np.ones_like(t) * 0.1
@@ -467,10 +465,10 @@ def likelihood_for_pt(params_and_vector_for_priors):
     return like
 
 
-def test_prior_transform_all_params(likelihood_for_pt):
+def test_prior_transform_all_params():
 
     # This should work
-    post = radvel.posterior.Posterior(likelihood_for_pt)
+    post = radvel.posterior.Posterior(likelihood_for_pt())
     post.priors += [radvel.prior.Gaussian( 'dvdt', 0, 1.0)]
     post.priors += [radvel.prior.HardBounds( 'curv', 0.0, 1.0)]
     post.priors += [radvel.prior.ModifiedJeffreys( 'jit', 0, 10.0, -0.1)]
@@ -478,14 +476,14 @@ def test_prior_transform_all_params(likelihood_for_pt):
 
     post.check_proper_priors()
 
-    post = radvel.posterior.Posterior(likelihood_for_pt)
+    post = radvel.posterior.Posterior(likelihood_for_pt())
     post.priors += [radvel.prior.Gaussian( 'dvdt', 0, 1.0)]
     post.priors += [radvel.prior.HardBounds( 'curv', 0.0, 1.0)]
     post.priors += [radvel.prior.ModifiedJeffreys( 'jit', 0, 10.0, -0.1)]
     with pytest.raises(ValueError, match="No prior"):
         post.check_proper_priors()
 
-    post = radvel.posterior.Posterior(likelihood_for_pt)
+    post = radvel.posterior.Posterior(likelihood_for_pt())
     post.priors += [radvel.prior.Gaussian( 'dvdt', 0, 1.0)]
     post.priors += [radvel.prior.HardBounds( 'curv', 0.0, 1.0)]
     post.priors += [radvel.prior.ModifiedJeffreys( 'jit', 0, 10.0, -0.1)]
@@ -496,9 +494,9 @@ def test_prior_transform_all_params(likelihood_for_pt):
 
 
 
-def test_prior_transform_order(likelihood_for_pt):
+def test_prior_transform_order():
 
-    post = radvel.posterior.Posterior(likelihood_for_pt)
+    post = radvel.posterior.Posterior(likelihood_for_pt())
     post.priors += [radvel.prior.Gaussian( 'dvdt', 0, 1.0)]
     post.priors += [radvel.prior.HardBounds( 'curv', 0.0, 1.0)]
     post.priors += [radvel.prior.ModifiedJeffreys( 'jit', 0, 10.0, -0.1)]
