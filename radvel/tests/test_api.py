@@ -205,37 +205,67 @@ def test_k2131(setupfn='example_planets/k2-131.py'):
     args = _args()
     args.setupfn = setupfn
 
-    radvel.driver.fit(args)
-    # Sanitize any arrays that may have been produced by fit
-    # (e.g., likelihood residuals, model predictions)
-    # This is a defensive check to catch infs/NaNs early
-    # Note: driver.fit modifies args in-place, so we check args contents
-    # if any arrays are stored there
-    # For now, we rely on the driver to handle infs/NaNs internally
-    # and raise if they propagate to outputs
+    # Add defensive checks for input data
+    import tempfile
+    import os
+    temp_dir = tempfile.mkdtemp()
+    args.outputdir = temp_dir
+    
+    try:
+        # Load and validate input data before fitting
+        import pandas as pd
+        data = pd.read_csv(os.path.join(radvel.DATADIR,'k2-131.txt'), sep=' ')
+        t = np.array(data['time'])
+        vel = np.array(data['mnvel'])
+        errvel = np.array(data['errvel'])
+        
+        # Check for problematic values in input data
+        assert not np.any(np.isnan(t)), "Input time array contains NaNs"
+        assert not np.any(np.isinf(t)), "Input time array contains infs"
+        assert not np.any(np.isnan(vel)), "Input velocity array contains NaNs"
+        assert not np.any(np.isinf(vel)), "Input velocity array contains infs"
+        assert not np.any(np.isnan(errvel)), "Input error array contains NaNs"
+        assert not np.any(np.isinf(errvel)), "Input error array contains infs"
+        assert not np.any(errvel <= 0), "Input error array contains non-positive values"
 
-    args.type = ['gp']
-    args.verbose = True
-    radvel.driver.ic_compare(args)
-    # Sanitize any arrays that may have been produced by ic_compare
-    # (e.g., model comparison results, likelihoods)
-    # This is a defensive check to catch infs/NaNs early
-    # Note: driver.ic_compare modifies args in-place, so we check args contents
-    # if any arrays are stored there
-    # For now, we rely on the driver to handle infs/NaNs internally
-    # and raise if they propagate to outputs
+        radvel.driver.fit(args)
+        # Check if any arrays in args contain infs/NaNs after fit
+        for attr_name in dir(args):
+            attr = getattr(args, attr_name)
+            if isinstance(attr, np.ndarray):
+                if np.any(np.isnan(attr)):
+                    raise ValueError(f"Array {attr_name} contains NaNs after fit")
+                if np.any(np.isinf(attr)):
+                    raise ValueError(f"Array {attr_name} contains infs after fit")
 
-    args.type = ['rv']
-    args.gp = True
-    args.plotkw = {}
-    radvel.driver.plots(args)
-    # Sanitize any arrays that may have been produced by plots
-    # (e.g., plot data, residuals)
-    # This is a defensive check to catch infs/NaNs early
-    # Note: driver.plots modifies args in-place, so we check args contents
-    # if any arrays are stored there
-    # For now, we rely on the driver to handle infs/NaNs internally
-    # and raise if they propagate to outputs
+        args.type = ['gp']
+        args.verbose = True
+        radvel.driver.ic_compare(args)
+        # Check if any arrays in args contain infs/NaNs after ic_compare
+        for attr_name in dir(args):
+            attr = getattr(args, attr_name)
+            if isinstance(attr, np.ndarray):
+                if np.any(np.isnan(attr)):
+                    raise ValueError(f"Array {attr_name} contains NaNs after ic_compare")
+                if np.any(np.isinf(attr)):
+                    raise ValueError(f"Array {attr_name} contains infs after ic_compare")
+
+        args.type = ['rv']
+        args.gp = True
+        args.plotkw = {}
+        radvel.driver.plots(args)
+        # Check if any arrays in args contain infs/NaNs after plots
+        for attr_name in dir(args):
+            attr = getattr(args, attr_name)
+            if isinstance(attr, np.ndarray):
+                if np.any(np.isnan(attr)):
+                    raise ValueError(f"Array {attr_name} contains NaNs after plots")
+                if np.any(np.isinf(attr)):
+                    raise ValueError(f"Array {attr_name} contains infs after plots")
+                    
+    finally:
+        import shutil
+        shutil.rmtree(temp_dir)
 
 
 def test_celerite(setupfn='example_planets/k2-131_celerite.py'):

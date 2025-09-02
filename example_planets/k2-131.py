@@ -32,6 +32,12 @@ gp_explength_mean = 9.5*np.sqrt(2.) # sqrt(2)*tau in Dai et al. (2017) [days]
 gp_explength_unc = 1.0*np.sqrt(2.)
 gp_perlength_mean = np.sqrt(1./(2*3.32)) # sqrt(1/2*gamma) in Dai et al. (2017)
 gp_perlength_unc = 0.04
+
+# Defensive checks for GP parameters to prevent infs/NaNs
+assert gp_explength_mean > 0 and not np.isnan(gp_explength_mean) and not np.isinf(gp_explength_mean), "Invalid gp_explength_mean"
+assert gp_explength_unc > 0 and not np.isnan(gp_explength_unc) and not np.isinf(gp_explength_unc), "Invalid gp_explength_unc"
+assert gp_perlength_mean > 0 and not np.isnan(gp_perlength_mean) and not np.isinf(gp_perlength_mean), "Invalid gp_perlength_mean"
+assert gp_perlength_unc > 0 and not np.isnan(gp_perlength_unc) and not np.isinf(gp_perlength_unc), "Invalid gp_perlength_unc"
 """
 NOTE: this prior isn't equivalent to the one Dai et al. (2017) use. However,
 our formulation of the quasi-periodic kernel explicitly keeps the covariance
@@ -45,6 +51,14 @@ Porb = 0.3693038 # [days]
 Porb_unc = 0.0000091
 Tc = 2457582.9360 # [BJD]
 Tc_unc = 0.0011
+
+# Defensive checks for orbital parameters
+assert gp_per_mean > 0 and not np.isnan(gp_per_mean) and not np.isinf(gp_per_mean), "Invalid gp_per_mean"
+assert gp_per_unc > 0 and not np.isnan(gp_per_unc) and not np.isinf(gp_per_unc), "Invalid gp_per_unc"
+assert Porb > 0 and not np.isnan(Porb) and not np.isinf(Porb), "Invalid Porb"
+assert Porb_unc > 0 and not np.isnan(Porb_unc) and not np.isinf(Porb_unc), "Invalid Porb_unc"
+assert not np.isnan(Tc) and not np.isinf(Tc), "Invalid Tc"
+assert Tc_unc > 0 and not np.isnan(Tc_unc) and not np.isinf(Tc_unc), "Invalid Tc_unc"
 
 # Set initial parameter value guesses.
 params = radvel.Parameters(nplanets,basis=fitting_basis, planet_letters=planet_letters)
