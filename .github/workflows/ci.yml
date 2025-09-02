@@ -41,6 +41,8 @@ jobs:
         else
           pip install --no-cache-dir -r requirements.txt
         fi
+        # Install celerite to test if it resolves GP covariance matrix issues
+        pip install celerite
         pip install coveralls pytest pytest-cov coverage
     
     - name: Install build dependencies
