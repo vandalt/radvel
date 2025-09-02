@@ -52,6 +52,9 @@ jobs:
         # Build C extension explicitly to ensure _kepler is compiled in CI
         python setup.py build_ext -i
         pip install -e .
+        # Ensure example data path is available to tests
+        export RADVEL_DATADIR="$GITHUB_WORKSPACE/example_data"
+        python -c "import os; p=os.environ.get('RADVEL_DATADIR'); print('RADVEL_DATADIR=', p); import radvel; print('radvel.DATADIR=', radvel.DATADIR)"
         python -c "import radvel._kepler; print('C extension _kepler available')"
         pytest radvel --cov=radvel --cov-report=term-missing
     
