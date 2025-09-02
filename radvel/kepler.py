@@ -43,7 +43,12 @@ def rv_drive(t, orbel, use_c_kepler_solver=cext):
 
     # Calculate the approximate eccentric anomaly, E1, via the mean anomaly  M.
     if use_c_kepler_solver and cext:
-        rv = _kepler.rv_drive_array(t, per, tp, e, om, k)
+        try:
+            rv = _kepler.rv_drive_array(t, per, tp, e, om, k)
+        except NameError:
+            # Extremely defensive: if the C symbol is unexpectedly missing
+            nu = radvel.orbit.true_anomaly(t, tp, per, e)
+            rv = k * (np.cos(nu + om) + e * np.cos(om))
     else:
         # Fall back to pure NumPy implementation when C extension is unavailable
         nu = radvel.orbit.true_anomaly(t, tp, per, e)
@@ -120,18 +125,23 @@ orbel = [32.468, 2456000, ecc, np.pi/2, 10.0]
 t = np.linspace(2455000, 2457000, %d)
 """ % (ecc, size)
 
-        print("\nProfiling pure C code for an RV time series with {} "
-              "observations".format(size))
-        tc = timeit.timeit('rv_drive(t, orbel, use_c_kepler_solver=True)',
-                           setup=setup, number=numloops)
-        print("Ran %d model calculations in %5.3f seconds" % (numloops, tc))
+        if cext:
+            print("\nProfiling pure C code for an RV time series with {} "
+                  "observations".format(size))
+            tc = timeit.timeit('rv_drive(t, orbel, use_c_kepler_solver=True)',
+                               setup=setup, number=numloops)
+            print("Ran %d model calculations in %5.3f seconds" % (numloops, tc))
+        else:
+            print("\nC extension not available; skipping C profiling for {} observations".format(size))
+            tc = None
 
         print("Profiling Python code for an RV time series with {} "
               "observations".format(size))
         tp = timeit.timeit('rv_drive(t, orbel, use_c_kepler_solver=False)',
                            setup=setup, number=numloops)
         print("Ran %d model calculations in %5.3f seconds" % (numloops, tp))
-        print("The C version runs %5.2f times faster" % (tp/tc))
+        if tc is not None and tc > 0:
+            print("The C version runs %5.2f times faster" % (tp/tc))
 
     ecc = 0.7
     numloops = 5000
@@ -147,15 +157,20 @@ orbel = [32.468, 2456000, ecc, np.pi/2, 10.0]
 t = np.linspace(2455000, 2457000, %d)
     """ % (ecc, size)
 
-            print("\nProfiling pure C code for an RV time series with {} "
-                  "observations".format(size))
-            tc = timeit.timeit('rv_drive(t, orbel, use_c_kepler_solver=True)',
-                               setup=setup, number=numloops)
-            print("Ran %d model calculations in %5.3f seconds" % (numloops, tc))
+            if cext:
+                print("\nProfiling pure C code for an RV time series with {} "
+                      "observations".format(size))
+                tc = timeit.timeit('rv_drive(t, orbel, use_c_kepler_solver=True)',
+                                   setup=setup, number=numloops)
+                print("Ran %d model calculations in %5.3f seconds" % (numloops, tc))
+            else:
+                print("\nC extension not available; skipping C profiling for {} observations".format(size))
+                tc = None
 
             print("Profiling Python code for an RV time series with {} "
                   "observations".format(size))
             tp = timeit.timeit('rv_drive(t, orbel, use_c_kepler_solver=False)',
                                setup=setup, number=numloops)
             print("Ran %d model calculations in %5.3f seconds" % (numloops, tp))
-            print("The C version runs %5.2f times faster" % (tp / tc))
+            if tc is not None and tc > 0:
+                print("The C version runs %5.2f times faster" % (tp / tc))
