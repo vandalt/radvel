@@ -73,11 +73,11 @@ params['curv'] = radvel.Parameter(value=0.,vary=False)
 time_base = np.median(t)
 
 # Define GP hyperparameters as Parameter objects.
-params['gp_amp_j'] = radvel.Parameter(value=26.0)
-params['gp_amp_h'] = radvel.Parameter(value=26.0)
-params['gp_explength'] = radvel.Parameter(value=gp_explength_mean)
-params['gp_per'] = radvel.Parameter(value=gp_per_mean)
-params['gp_perlength'] = radvel.Parameter(value=gp_perlength_mean)
+params['gp_amp_j'] = radvel.Parameter(value=26.0, bounds=(0.01, 100.0))
+params['gp_amp_h'] = radvel.Parameter(value=26.0, bounds=(0.01, 100.0))
+params['gp_explength'] = radvel.Parameter(value=gp_explength_mean, bounds=(0.1, 100.0))
+params['gp_per'] = radvel.Parameter(value=gp_per_mean, bounds=(0.1, 100.0))
+params['gp_perlength'] = radvel.Parameter(value=gp_perlength_mean, bounds=(0.01, 10.0))
 
 
 """

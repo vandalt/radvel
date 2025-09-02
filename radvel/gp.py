@@ -315,10 +315,6 @@ class QuasiPerKernel(Kernel):
         per = self.hparams['gp_per'].value
         explength = self.hparams['gp_explength'].value
 
-        # Debug: Check parameter values for numerical issues
-        print(f"DEBUG: GP kernel parameters - amp: {amp}, per: {per}, explength: {explength}, perlength: {perlength}")
-        print(f"DEBUG: GP kernel parameters - amp valid: {np.isfinite(amp)}, per valid: {np.isfinite(per)}, explength valid: {np.isfinite(explength)}, perlength valid: {np.isfinite(perlength)}")
-        
         # Check for problematic parameter values
         if not np.isfinite(amp) or amp <= 0:
             raise ValueError(f"Invalid gp_amp value: {amp}")
@@ -329,41 +325,20 @@ class QuasiPerKernel(Kernel):
         if not np.isfinite(perlength) or perlength <= 0:
             raise ValueError(f"Invalid gp_perlength value: {perlength}")
 
-        # Debug: Check distance matrices
-        print(f"DEBUG: Distance matrices - dist_p shape: {self.dist_p.shape}, dist_se shape: {self.dist_se.shape}")
-        print(f"DEBUG: Distance matrices - dist_p range: {self.dist_p.min():.6f} to {self.dist_p.max():.6f}")
-        print(f"DEBUG: Distance matrices - dist_se range: {self.dist_se.min():.6f} to {self.dist_se.max():.6f}")
-        print(f"DEBUG: Distance matrices - any NaNs in dist_p: {np.any(np.isnan(self.dist_p))}")
-        print(f"DEBUG: Distance matrices - any NaNs in dist_se: {np.any(np.isnan(self.dist_se))}")
-
-        # Compute covariance matrix step by step with debugging
+        # Compute covariance matrix step by step
         exp_term1 = -self.dist_se/(explength**2)
         exp_term2 = (-np.sin(np.pi*self.dist_p/per)**2.) / (2.*perlength**2)
         
-        print(f"DEBUG: Exponential terms - exp_term1 range: {exp_term1.min():.6f} to {exp_term1.max():.6f}")
-        print(f"DEBUG: Exponential terms - exp_term2 range: {exp_term2.min():.6f} to {exp_term2.max():.6f}")
-        print(f"DEBUG: Exponential terms - any NaNs in exp_term1: {np.any(np.isnan(exp_term1))}")
-        print(f"DEBUG: Exponential terms - any NaNs in exp_term2: {np.any(np.isnan(exp_term2))}")
-        
-        # Check for extreme values that could cause overflow
-        if np.any(exp_term1 > 100) or np.any(exp_term2 > 100):
-            print(f"WARNING: Large exponential terms detected - exp_term1 max: {exp_term1.max():.2f}, exp_term2 max: {exp_term2.max():.2f}")
+        # Clamp extreme values to prevent overflow
+        exp_term1 = np.clip(exp_term1, -100, 100)
+        exp_term2 = np.clip(exp_term2, -100, 100)
         
         # Compute exponential terms
         exp1 = np.exp(exp_term1)
         exp2 = np.exp(exp_term2)
         
-        print(f"DEBUG: Exponential results - exp1 range: {exp1.min():.6f} to {exp1.max():.6f}")
-        print(f"DEBUG: Exponential results - exp2 range: {exp2.min():.6f} to {exp2.max():.6f}")
-        print(f"DEBUG: Exponential results - any NaNs in exp1: {np.any(np.isnan(exp1))}")
-        print(f"DEBUG: Exponential results - any NaNs in exp2: {np.any(np.isnan(exp2))}")
-        
         # Compute final covariance matrix
         K = np.array(amp**2 * exp1 * exp2)
-        
-        print(f"DEBUG: Final covariance matrix - shape: {K.shape}, range: {K.min():.6f} to {K.max():.6f}")
-        print(f"DEBUG: Final covariance matrix - any NaNs: {np.any(np.isnan(K))}")
-        print(f"DEBUG: Final covariance matrix - any infs: {np.any(np.isinf(K))}")
 
         self.covmatrix = K
 
