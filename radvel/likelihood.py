@@ -521,8 +521,35 @@ class GPLikelihood(RVLikelihood):
         self.kernel.compute_distances(self.x, self.x)
         K = self.kernel.compute_covmatrix(self.errorbars())
 
+        # Debug: Check covariance matrix for NaNs/infs before Cholesky decomposition
+        print(f"DEBUG: Main covariance matrix K - shape: {K.shape}")
+        print(f"DEBUG: Main covariance matrix K - range: {K.min():.6f} to {K.max():.6f}")
+        print(f"DEBUG: Main covariance matrix K - any NaNs: {np.any(np.isnan(K))}")
+        print(f"DEBUG: Main covariance matrix K - any infs: {np.any(np.isinf(K))}")
+        
+        # Validate covariance matrix before Cholesky decomposition
+        if np.any(np.isnan(K)):
+            raise ValueError("Covariance matrix K contains NaNs - cannot proceed with Cholesky decomposition")
+        if np.any(np.isinf(K)):
+            raise ValueError("Covariance matrix K contains infs - cannot proceed with Cholesky decomposition")
+        
+        # Check if matrix is positive definite (all eigenvalues > 0)
+        try:
+            eigenvals = np.linalg.eigvals(K)
+            min_eigenval = np.min(eigenvals)
+            print(f"DEBUG: Eigenvalues of K - min: {min_eigenval:.6f}, max: {np.max(eigenvals):.6f}")
+            if min_eigenval <= 0:
+                print(f"WARNING: Covariance matrix K is not positive definite - min eigenvalue: {min_eigenval:.6f}")
+        except Exception as e:
+            print(f"WARNING: Could not check eigenvalues of K: {e}")
+
         self.kernel.compute_distances(xpred, self.x)
         Ks = self.kernel.compute_covmatrix(0.)
+        
+        # Debug: Check cross-covariance matrix
+        print(f"DEBUG: Cross-covariance matrix Ks - shape: {Ks.shape}")
+        print(f"DEBUG: Cross-covariance matrix Ks - any NaNs: {np.any(np.isnan(Ks))}")
+        print(f"DEBUG: Cross-covariance matrix Ks - any infs: {np.any(np.isinf(Ks))}")
 
         L = cho_factor(K)
         alpha = cho_solve(L, r)
