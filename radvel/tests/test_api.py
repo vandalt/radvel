@@ -219,14 +219,49 @@ def test_k2131(setupfn='example_planets/k2-131.py'):
         vel = np.array(data['mnvel'])
         errvel = np.array(data['errvel'])
         
+        # Debug: Print data summary for CI debugging
+        print(f"DEBUG: Data loaded from {os.path.join(radvel.DATADIR,'k2-131.txt')}")
+        print(f"DEBUG: Data shape: {data.shape}")
+        print(f"DEBUG: Time range: {t.min():.6f} to {t.max():.6f}")
+        print(f"DEBUG: Velocity range: {vel.min():.2f} to {vel.max():.2f}")
+        print(f"DEBUG: Error range: {errvel.min():.2f} to {errvel.max():.2f}")
+        print(f"DEBUG: Any NaNs in time: {np.any(np.isnan(t))}")
+        print(f"DEBUG: Any infs in time: {np.any(np.isinf(t))}")
+        print(f"DEBUG: Any NaNs in velocity: {np.any(np.isnan(vel))}")
+        print(f"DEBUG: Any infs in velocity: {np.any(np.isinf(vel))}")
+        print(f"DEBUG: Any NaNs in error: {np.any(np.isnan(errvel))}")
+        print(f"DEBUG: Any infs in error: {np.any(np.isinf(errvel))}")
+        print(f"DEBUG: Any non-positive errors: {np.any(errvel <= 0)}")
+        
         # Check for problematic values in input data
-        assert not np.any(np.isnan(t)), "Input time array contains NaNs"
-        assert not np.any(np.isinf(t)), "Input time array contains infs"
-        assert not np.any(np.isnan(vel)), "Input velocity array contains NaNs"
-        assert not np.any(np.isinf(vel)), "Input velocity array contains infs"
-        assert not np.any(np.isnan(errvel)), "Input error array contains NaNs"
-        assert not np.any(np.isinf(errvel)), "Input error array contains infs"
-        assert not np.any(errvel <= 0), "Input error array contains non-positive values"
+        if np.any(np.isnan(t)):
+            print(f"DEBUG: Found NaNs in time at indices: {np.where(np.isnan(t))[0]}")
+            print(f"DEBUG: Time values with NaNs: {t[np.isnan(t)]}")
+            assert False, "Input time array contains NaNs"
+        if np.any(np.isinf(t)):
+            print(f"DEBUG: Found infs in time at indices: {np.where(np.isinf(t))[0]}")
+            print(f"DEBUG: Time values with infs: {t[np.isinf(t)]}")
+            assert False, "Input time array contains infs"
+        if np.any(np.isnan(vel)):
+            print(f"DEBUG: Found NaNs in velocity at indices: {np.where(np.isnan(vel))[0]}")
+            print(f"DEBUG: Velocity values with NaNs: {vel[np.isnan(vel)]}")
+            assert False, "Input velocity array contains NaNs"
+        if np.any(np.isinf(vel)):
+            print(f"DEBUG: Found infs in velocity at indices: {np.where(np.isinf(vel))[0]}")
+            print(f"DEBUG: Velocity values with infs: {vel[np.isinf(vel)]}")
+            assert False, "Input velocity array contains infs"
+        if np.any(np.isnan(errvel)):
+            print(f"DEBUG: Found NaNs in error at indices: {np.where(np.isnan(errvel))[0]}")
+            print(f"DEBUG: Error values with NaNs: {errvel[np.isnan(errvel)]}")
+            assert False, "Input error array contains NaNs"
+        if np.any(np.isinf(errvel)):
+            print(f"DEBUG: Found infs in error at indices: {np.where(np.isinf(errvel))[0]}")
+            print(f"DEBUG: Error values with infs: {errvel[np.isinf(errvel)]}")
+            assert False, "Input error array contains infs"
+        if np.any(errvel <= 0):
+            print(f"DEBUG: Found non-positive errors at indices: {np.where(errvel <= 0)[0]}")
+            print(f"DEBUG: Non-positive error values: {errvel[errvel <= 0]}")
+            assert False, "Input error array contains non-positive values"
 
         radvel.driver.fit(args)
         # Check if any arrays in args contain infs/NaNs after fit
