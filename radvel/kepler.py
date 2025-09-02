@@ -42,9 +42,10 @@ def rv_drive(t, orbel, use_c_kepler_solver=cext):
         e = 0.99
 
     # Calculate the approximate eccentric anomaly, E1, via the mean anomaly  M.
-    if use_c_kepler_solver:
+    if use_c_kepler_solver and cext:
         rv = _kepler.rv_drive_array(t, per, tp, e, om, k)
     else:
+        # Fall back to pure NumPy implementation when C extension is unavailable
         nu = radvel.orbit.true_anomaly(t, tp, per, e)
         rv = k * (np.cos(nu + om) + e * np.cos(om))
 
