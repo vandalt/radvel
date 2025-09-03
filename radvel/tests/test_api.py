@@ -402,7 +402,7 @@ def test_kernels():
         fakeparams1['dummy'] = radvel.Parameter(value=1.0)
         try:
             kernel_call(fakeparams1)
-            raise Exception('Test #1 failed for {}'.format(kernel))
+            raise RuntimeError('Test #1 failed for {}'.format(kernel))
         except AssertionError:
             sys.stdout.write("passed #1\n")
 
@@ -410,7 +410,7 @@ def test_kernels():
         fakeparams2[hnames[0]] = 1.
         try:
             kernel_call(fakeparams2)
-            raise Exception('Test #2 failed for {}'.format(kernel))
+            raise RuntimeError('Test #2 failed for {}'.format(kernel))
         except AttributeError:
             sys.stdout.write("passed #2\n")
 
@@ -649,7 +649,7 @@ def test_model_comp(setupfn='example_planets/HD164922.py'):
     args.type = ['something_else']
     try:
         radvel.driver.ic_compare(args)
-        raise Exception("Unexpected result from model_comp.")
+        raise RuntimeError("Unexpected result from model_comp.")
     except AssertionError:  # expected result
         return
 
