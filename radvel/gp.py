@@ -316,14 +316,30 @@ class QuasiPerKernel(Kernel):
         explength = self.hparams['gp_explength'].value
 
         # Check for problematic parameter values
-        if not np.isfinite(amp) or amp <= 0:
+        # Allow 0 values for model comparison (when GP is disabled)
+        if not np.isfinite(amp) or amp < 0:
             raise ValueError(f"Invalid gp_amp value: {amp}")
-        if not np.isfinite(per) or per <= 0:
+        if not np.isfinite(per) or per < 0:
             raise ValueError(f"Invalid gp_per value: {per}")
-        if not np.isfinite(explength) or explength <= 0:
+        if not np.isfinite(explength) or explength < 0:
             raise ValueError(f"Invalid gp_explength value: {explength}")
-        if not np.isfinite(perlength) or perlength <= 0:
+        if not np.isfinite(perlength) or perlength < 0:
             raise ValueError(f"Invalid gp_perlength value: {perlength}")
+        
+        # Debug: Print parameter values to see what's happening
+        print(f"DEBUG: GP parameters - amp: {amp}, per: {per}, explength: {explength}, perlength: {perlength}")
+        
+        # If any GP parameter is 0, this is likely a "no GP" model comparison
+        # In this case, return a zero covariance matrix
+        if amp == 0 or per == 0 or explength == 0 or perlength == 0:
+            print("DEBUG: Detected zero GP parameters - returning zero covariance matrix for model comparison")
+            n = len(self.dist_se)
+            K = np.zeros((n, n))
+            if isinstance(errors, (int, float)) and errors == 0:
+                return K
+            else:
+                K[np.diag_indices_from(K)] += errors**2
+                return K
 
         # Compute covariance matrix step by step
         exp_term1 = -self.dist_se/(explength**2)
