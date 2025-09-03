@@ -133,7 +133,7 @@ class SqExpKernel(Kernel):
         length = self.hparams['gp_length'].value
         amp = self.hparams['gp_amp'].value
 
-        K = amp**2 * scipy.exp(-self.dist/(length**2))
+        K = amp**2 * np.exp(-self.dist/(length**2))
 
         self.covmatrix = K
         # add errors along the diagonal
@@ -220,7 +220,7 @@ class PerKernel(Kernel):
         amp = self.hparams['gp_amp'].value
         per = self.hparams['gp_per'].value
 
-        K = amp**2 * scipy.exp(-np.sin(np.pi*self.dist/per)**2. / (2.*length**2))
+        K = amp**2 * np.exp(-np.sin(np.pi*self.dist/per)**2. / (2.*length**2))
         self.covmatrix = K
         # add errors along the diagonal
         try:
@@ -315,9 +315,42 @@ class QuasiPerKernel(Kernel):
         per = self.hparams['gp_per'].value
         explength = self.hparams['gp_explength'].value
 
-        K = np.array(amp**2
-                     * scipy.exp(-self.dist_se/(explength**2))
-                     * scipy.exp((-np.sin(np.pi*self.dist_p/per)**2.) / (2.*perlength**2)))
+        # Check for problematic parameter values
+        # Allow 0 values for model comparison (when GP is disabled)
+        if not np.isfinite(amp) or amp < 0:
+            raise ValueError(f"Invalid gp_amp value: {amp}")
+        if not np.isfinite(per) or per < 0:
+            raise ValueError(f"Invalid gp_per value: {per}")
+        if not np.isfinite(explength) or explength < 0:
+            raise ValueError(f"Invalid gp_explength value: {explength}")
+        if not np.isfinite(perlength) or perlength < 0:
+            raise ValueError(f"Invalid gp_perlength value: {perlength}")
+        
+        # If any GP parameter is 0, this is likely a "no GP" model comparison
+        # In this case, return a zero covariance matrix
+        if amp == 0 or per == 0 or explength == 0 or perlength == 0:
+            n = len(self.dist_se)
+            K = np.zeros((n, n))
+            if isinstance(errors, (int, float)) and errors == 0:
+                return K
+            else:
+                K[np.diag_indices_from(K)] += errors**2
+                return K
+
+        # Compute covariance matrix step by step
+        exp_term1 = -self.dist_se/(explength**2)
+        exp_term2 = (-np.sin(np.pi*self.dist_p/per)**2.) / (2.*perlength**2)
+        
+        # Clamp extreme values to prevent overflow
+        exp_term1 = np.clip(exp_term1, -100, 100)
+        exp_term2 = np.clip(exp_term2, -100, 100)
+        
+        # Compute exponential terms
+        exp1 = np.exp(exp_term1)
+        exp2 = np.exp(exp_term2)
+        
+        # Compute final covariance matrix
+        K = np.array(amp**2 * exp1 * exp2)
 
         self.covmatrix = K
 

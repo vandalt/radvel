@@ -521,6 +521,12 @@ class GPLikelihood(RVLikelihood):
         self.kernel.compute_distances(self.x, self.x)
         K = self.kernel.compute_covmatrix(self.errorbars())
 
+        # Validate covariance matrix before Cholesky decomposition
+        if np.any(np.isnan(K)):
+            raise ValueError("Covariance matrix K contains NaNs - cannot proceed with Cholesky decomposition")
+        if np.any(np.isinf(K)):
+            raise ValueError("Covariance matrix K contains infs - cannot proceed with Cholesky decomposition")
+
         self.kernel.compute_distances(xpred, self.x)
         Ks = self.kernel.compute_covmatrix(0.)
 

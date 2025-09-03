@@ -34,17 +34,38 @@ __version__ = '1.5.0'
 __package__ = __path__[0]
 
 MODULEDIR, filename = os.path.split(__file__)
-DATADIR = os.path.join(sys.prefix, 'radvel_example_data')
-if not os.path.isdir(DATADIR):
-    warnings.warn("Could not find radvel_example_data directory in {}".format(sys.prefix),
-                  ImportWarning)
-    trydir = os.path.join(os.environ['HOME'], '.local', 'radvel_example_data')
-    if os.path.isdir(trydir):
-        warnings.warn("Found radvel_example_data in ~/.local", ImportWarning)
-        DATADIR = trydir
-    else:
-        warnings.warn("Failed to locate radvel_example_data directory. Example setup files will not work.",
+
+# Allow override via environment variable (useful in CI)
+DATADIR = None
+_env_datadir = os.environ.get('RADVEL_DATADIR')
+if _env_datadir and os.path.isdir(_env_datadir):
+    DATADIR = _env_datadir
+else:
+    # For local development, check multiple possible locations
+    possible_dirs = [
+        os.path.join(os.path.dirname(os.path.dirname(MODULEDIR)), 'example_data'),  # Source directory
+        os.path.join(os.getcwd(), 'example_data'),  # Current working directory
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), 'example_data'),  # File-based path
+    ]
+
+    for local_data_dir in possible_dirs:
+        if os.path.isdir(local_data_dir):
+            DATADIR = local_data_dir
+            break
+
+if DATADIR is None:
+    # Fall back to installed package location
+    DATADIR = os.path.join(sys.prefix, 'radvel_example_data')
+    if not os.path.isdir(DATADIR):
+        warnings.warn("Could not find radvel_example_data directory in {}".format(sys.prefix),
                       ImportWarning)
+        trydir = os.path.join(os.environ['HOME'], '.local', 'radvel_example_data')
+        if os.path.isdir(trydir):
+            warnings.warn("Found radvel_example_data in ~/.local", ImportWarning)
+            DATADIR = trydir
+        else:
+            warnings.warn("Failed to locate radvel_example_data directory. Example setup files will not work.",
+                          ImportWarning)
 
 # tell python how to pickle methods and fucntions; necessary for running MCMC in multi-
 #  threaded mode.
