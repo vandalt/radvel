@@ -126,12 +126,7 @@ priors = [radvel.prior.Gaussian('per1', Porb, Porb_unc),
           radvel.prior.Jeffreys('gp_amp_j', 0.01, 100.),
           radvel.prior.Jeffreys('jit_pfs', 0.01, 10.),
           radvel.prior.Jeffreys('jit_harps-n', 0.01,10.),
-          radvel.prior.Gaussian('gp_explength', gp_explength_mean, gp_explength_unc),
-          radvel.prior.Gaussian('gp_per', gp_per_mean, gp_per_unc),
-          radvel.prior.Gaussian('gp_perlength', gp_perlength_mean, gp_perlength_unc),
-          # Add hard bounds to prevent GP parameters from going negative
-          radvel.prior.HardBounds('gp_amp_h', 0.01, 100.),
-          radvel.prior.HardBounds('gp_amp_j', 0.01, 100.),
+          # Use HardBounds instead of Gaussian for GP parameters to enforce strict bounds
           radvel.prior.HardBounds('gp_explength', 0.1, 100.),
           radvel.prior.HardBounds('gp_per', 0.1, 100.),
           radvel.prior.HardBounds('gp_perlength', 0.01, 10.0)]
