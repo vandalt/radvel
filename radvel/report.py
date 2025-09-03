@@ -502,7 +502,7 @@ Use \texttt{radvel table -t rv} to save the full \LaTeX\ table as a separate fil
                     row += r" {$\gamma$}"
                     #row = row[:-1]
                 else:
-                    raise(ValueError, "Failed to format values for LaTeX: {}  {}".format(s, val))
+                    raise ValueError("Failed to format values for LaTeX: {}  {}".format(s, val))
             row += " & %.2f" % (statsdict_sorted[i]['AICc'][0] - minAIC)
             # row = row[3:]
             if i == 0:
