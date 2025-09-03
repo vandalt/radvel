@@ -489,13 +489,13 @@ Use \texttt{radvel table -t rv} to save the full \LaTeX\ table as a separate fil
             row = ""
             for s in statsdict_sorted[i].keys():
                 val = statsdict_sorted[i][s][0]
-                if type(val) is int:
+                if isinstance(val, (int, np.integer)):
                     row += " & %s" % str(val)
-                elif type(val) is float:
+                elif isinstance(val, (float, np.floating)):
                     row += " & %.2f" % val
-                elif type(val) is str:
+                elif isinstance(val, str):
                     row += " & %s" % val
-                elif type(val) is list:
+                elif isinstance(val, list):
                     row += " &"
                     for item in val:
                         row += " %s," %item
