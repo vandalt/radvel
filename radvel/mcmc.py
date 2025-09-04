@@ -47,7 +47,7 @@ def _closescr():
     if isnotebook() == False:
         try:
             curses.endwin()
-        except:
+        except Exception:
              pass
 
 

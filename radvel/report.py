@@ -371,9 +371,9 @@ Use \texttt{radvel table -t rv} to save the full \LaTeX\ table as a separate fil
         kw['nlinks'] = len(self.report.chains)
         kw['time_base'] = self.report.post.likelihood.model.time_base
         if name_in_title:
-            kw['title'] = "{} MCMC Posteriors".format(self.report.starname)
+            kw['title'] = "{} Posteriors".format(self.report.starname)
         else:
-            kw['title'] = "MCMC Posteriors"
+            kw['title'] = "Posteriors"
         tmpfile = 'tab_params.tex'
         t = env.get_template(tmpfile)
         out = t.render(**kw)
@@ -390,7 +390,9 @@ Use \texttt{radvel table -t rv} to save the full \LaTeX\ table as a separate fil
         values = [self.minafactor, self.maxarchange, self.maxgr, self.mintz]
         rows = []
         for i in range(0,len(names)):
-            rows.append(r"%s & $%7.3f$" % (names[i], float(values[i])))
+            val = values[i]
+            val_str = '${:7.3f}$'.format(float(val)) if val is not None else "None"
+            rows.append(r"%s & %s" % (names[i], val_str))
 
         kw = dict()
         kw['rows'] = rows
@@ -487,20 +489,20 @@ Use \texttt{radvel table -t rv} to save the full \LaTeX\ table as a separate fil
             row = ""
             for s in statsdict_sorted[i].keys():
                 val = statsdict_sorted[i][s][0]
-                if type(val) is int:
+                if isinstance(val, (int, np.integer)):
                     row += " & %s" % str(val)
-                elif type(val) is float:
+                elif isinstance(val, (float, np.floating)):
                     row += " & %.2f" % val
-                elif type(val) is str:
+                elif isinstance(val, str):
                     row += " & %s" % val
-                elif type(val) is list:
+                elif isinstance(val, list):
                     row += " &"
                     for item in val:
                         row += " %s," %item
                     row += r" {$\gamma$}"
                     #row = row[:-1]
                 else:
-                    raise(ValueError, "Failed to format values for LaTeX: {}  {}".format(s, val))
+                    raise ValueError("Failed to format values for LaTeX: {}  {}".format(s, val))
             row += " & %.2f" % (statsdict_sorted[i]['AICc'][0] - minAIC)
             # row = row[3:]
             if i == 0:

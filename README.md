@@ -3,7 +3,7 @@
 
 General Toolkit for Modeling Radial Velocities.
 
-[![Build Status](https://travis-ci.com/California-Planet-Search/radvel.svg?branch=master)](https://travis-ci.com/California-Planet-Search/radvel)
+[![CI](https://github.com/California-Planet-Search/radvel/workflows/CI/badge.svg)](https://github.com/California-Planet-Search/radvel/actions)
 [![Coverage Status](https://coveralls.io/repos/github/California-Planet-Search/radvel/badge.svg?branch=master)](https://coveralls.io/github/California-Planet-Search/radvel?branch=master)
 [![Documentation Status](https://readthedocs.org/projects/radvel/badge/?version=latest)](http://radvel.readthedocs.io/en/latest/?badge=latest)
 [![PyPI version](https://badge.fury.io/py/radvel.svg)](https://badge.fury.io/py/radvel)
@@ -20,6 +20,33 @@ Written by BJ Fulton, Erik Petigura, Sarah Blunt, and Evan Sinukoff. [Fulton et 
 
 Please cite the [original publication](http://adsabs.harvard.edu/abs/2018PASP..130d4504F) and the following DOI if you make use of this software in your research.
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.580821.svg)](https://doi.org/10.5281/zenodo.580821)
+
+## Installation
+
+### Quick Install
+
+```bash
+pip install radvel
+```
+
+### Development Install
+
+```bash
+git clone https://github.com/California-Planet-Search/radvel.git
+cd radvel
+
+# Install problematic dependencies via conda (recommended for macOS)
+conda install pytables h5py
+
+# Install in development mode
+pip install -e .
+```
+
+### System Requirements
+
+- **Python**: 3.8, 3.9, 3.11, 3.12
+- **LaTeX**: Required for report generation (install TexLive or similar)
+- **macOS users**: Consider using conda for `pytables` and `h5py` to avoid compilation issues
 
 ## Documentation
 

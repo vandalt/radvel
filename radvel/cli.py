@@ -5,6 +5,7 @@ import os
 from argparse import ArgumentParser
 
 import radvel.driver
+from radvel.nested_sampling import BACKENDS
 
 
 def main():
@@ -60,6 +61,12 @@ E.g. --plotkw "{'yscale_auto': True}"' ''')
                           default=False,
                           help="Make a multipanel plot with GP bands. For use only with GPLikleihood objects"
                           )
+    psr_plot.add_argument(
+        '--sampler',
+        default='auto',
+        choices=['mcmc', 'ns', 'auto'],
+        help='Sampling results to use in the plots. By default, will try MCMC first and nested sampling if no MCMC is found.'
+    )
 
     psr_plot.set_defaults(func=radvel.driver.plots)
 
@@ -118,12 +125,46 @@ Convergence checks will start after the minsteps threshold or the minpercent thr
                           )
     psr_mcmc.set_defaults(func=radvel.driver.mcmc)
 
+    # Nested Sampling
+    psr_ns = subpsr.add_parser('ns', parents=[psr_parent], description='Perform nested sampling')
+    psr_ns.add_argument(
+        '--sampler',
+        default='ultranest',
+        help='Nested sampling package to use',
+        choices=list(BACKENDS.keys())
+    )
+    psr_ns.add_argument(
+        '--proceed', dest='proceed', action='store_true',
+        help='If True, nested sampling will resume from the previous run. Also enables --overwrite.'
+    )
+    psr_ns.add_argument(
+        '--overwrite',
+        action='store_true',
+        help='Overwrite nested sampling output if present.',
+    )
+    psr_ns.add_argument(
+        '--sampler-kwargs',
+        default=None,
+        help='Dictionary of keyword argument for the "sampler" object. Passed as a space-separated list of key=value pairs.'
+    )
+    psr_ns.add_argument(
+        '--run-kwargs',
+        default=None,
+        help='Dictionary of keyword argument for the nested sampling "run" method. Passed as a space-separated list of key=value pairs.'
+    )
+    psr_ns.set_defaults(func=radvel.driver.nested_sampling)
+
     # Derive physical parameters
     psr_physical = subpsr.add_parser('derive', parents=[psr_parent],
-                                     description="Multiply MCMC chains by physical parameters. MCMC must"
+                                     description="Multiply MCMC or NS chains by physical parameters. MCMC must"
                                      + "be run first"
                                      )
-
+    psr_physical.add_argument(
+        '--sampler',
+        default='auto',
+        choices=['mcmc', 'ns', 'auto'],
+        help='Sampling results to use in the derived parameters. By default, will try MCMC first and nested sampling if no MCMC is found.'
+    )
     psr_physical.set_defaults(func=radvel.driver.derive)
 
     # Information Criteria comparison (BIC/AIC)
@@ -168,6 +209,8 @@ Convergence checks will start after the minsteps threshold or the minpercent thr
                            help='''Include star name in table headers. Default just prints \
 descriptive titles without star name [False]'''
                            )
+    psr_table.add_argument('--sampler', default='auto', choices=['mcmc', 'ns', 'auto'],
+                              help='Sampling results to use in the tables. By default, will try MCMC first and nested sampling if no MCMC is found.')
 
     psr_table.set_defaults(func=radvel.driver.tables)
 
@@ -179,6 +222,8 @@ descriptive titles without star name [False]'''
                             help='Type of model comparison table to include. Default: ic')
 
     psr_report.add_argument('--latex-compiler', default='pdflatex', type=str, help='Path to latex compiler')
+    psr_report.add_argument('--sampler', default='auto', choices=['mcmc', 'ns', 'auto'],
+                              help='Sampling results to use in the report. By default, will try MCMC first and nested sampling if no MCMC is found.')
 
     psr_report.set_defaults(func=radvel.driver.report)
 

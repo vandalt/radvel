@@ -71,7 +71,7 @@ Parameters in config file must be converted to fitting basis.
     if decorr:
         try:
             decorr_vars = P.decorr_vars
-        except:
+        except AttributeError:
             raise Exception("--decorr option selected,\
  but decorr_vars is not found in your setup file.")
     else:

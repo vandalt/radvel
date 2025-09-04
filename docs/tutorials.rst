@@ -14,4 +14,6 @@ in the `docs/tutorials` subdirectory of the radvel package.
    tutorials/K2-24_Fitting+MCMC.ipynb
    tutorials/GaussianProcess-tutorial.ipynb
    tutorials/CustomModel-tutorial.ipynb
+   tutorials/toi141_fitting_nested_sampling.ipynb
+   tutorials/k2_24_demo_all_samplers.ipynb
 

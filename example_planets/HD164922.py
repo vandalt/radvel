@@ -6,9 +6,13 @@ import pandas as pd
 import numpy as np
 import radvel
 
+N_PLANETS = 2
+
 # Define global planetary system and dataset parameters
 starname = 'HD164922'
-nplanets = 2    # number of planets in the system
+nplanets = N_PLANETS    # number of planets in the system
+if nplanets != 2:
+    starname += f'_{nplanets}_planets'
 instnames = ['k', 'j', 'a']    # list of instrument names. Can be whatever you like (no spaces) but should match 'tel' column in the input file.
 ntels = len(instnames)       # number of instruments with unique velocity zero-points
 fitting_basis = 'per tc secosw sesinw logk'    # Fitting basis, see radvel.basis.BASIS_NAMES for available basis names
@@ -24,11 +28,12 @@ anybasis_params['tc1'] = radvel.Parameter(value=2456779.)     # time of inferior
 anybasis_params['e1'] = radvel.Parameter(value=0.01)          # eccentricity of 1st planet
 anybasis_params['w1'] = radvel.Parameter(value=np.pi/2.)      # argument of periastron of the star's orbit for 1st planet
 anybasis_params['k1'] = radvel.Parameter(value=10.0)          # velocity semi-amplitude for 1st planet
-anybasis_params['per2'] = radvel.Parameter(value=75.771)      # same parameters for 2nd planet ...
-anybasis_params['tc2'] = radvel.Parameter(value=2456277.6)
-anybasis_params['e2'] = radvel.Parameter(value=0.01)
-anybasis_params['w2'] = radvel.Parameter(value=np.pi/2.)
-anybasis_params['k2'] = radvel.Parameter(value=1)
+if nplanets > 1:
+    anybasis_params['per2'] = radvel.Parameter(value=75.771)      # same parameters for 2nd planet ...
+    anybasis_params['tc2'] = radvel.Parameter(value=2456277.6)
+    anybasis_params['e2'] = radvel.Parameter(value=0.01)
+    anybasis_params['w2'] = radvel.Parameter(value=np.pi/2.)
+    anybasis_params['k2'] = radvel.Parameter(value=1)
 
 time_base = 2456778          # abscissa for slope and curvature terms (should be near mid-point of time baseline)
 anybasis_params['dvdt'] = radvel.Parameter(value=0.0)         # slope: (If rv is m/s and time is days then [dvdt] is m/s/day)
@@ -61,15 +66,29 @@ data = pd.read_csv(os.path.join(radvel.DATADIR,'164922_fixed.txt'), sep=' ')
 
 # Define prior shapes and widths here.
 priors = [
-    radvel.prior.EccentricityPrior( nplanets ),           # Keeps eccentricity < 1
+    radvel.prior.Jeffreys('per1', 500.0, 5000.0),
     radvel.prior.Gaussian('tc1', params['tc1'].value, 300.0),    # Gaussian prior on tc1 with center at tc1 and width 300 days
+    radvel.prior.HardBounds('secosw1', -1, 1),
+    radvel.prior.HardBounds('sesinw1', -1, 1),
+    radvel.prior.HardBounds('logk1', np.log(1e-3), np.log(30)),
+    radvel.prior.EccentricityPrior( nplanets ),           # Keeps eccentricity < 1
     radvel.prior.HardBounds('jit_k', 0.0, 10.0),
     radvel.prior.HardBounds('jit_j', 0.0, 10.0),
-    radvel.prior.HardBounds('jit_a', 0.0, 10.0)
+    radvel.prior.HardBounds('jit_a', 0.0, 10.0),
+    radvel.prior.HardBounds('gamma_k', -10.0, 10.0),
+    radvel.prior.HardBounds('gamma_j', -10.0, 10.0),
+    radvel.prior.HardBounds('gamma_a', -10.0, 10.0),
 ]
+if nplanets > 1:
+    priors += [
+        radvel.prior.Jeffreys('per2', 1.0, 500.0),
+        radvel.prior.Gaussian('tc2', params["tc2"].value, 25.0),    # Gaussian prior on tc1 with center at tc2 and width 25 days
+        radvel.prior.HardBounds('secosw2', -1, 1),
+        radvel.prior.HardBounds("sesinw2", -1, 1),
+        radvel.prior.HardBounds("logk2", np.log(1e-3), np.log(30)),
+    ]
 
 
 # optional argument that can contain stellar mass in solar units (mstar) and
 # uncertainty (mstar_err). If not set, mstar will be set to nan.
 stellar = dict(mstar=0.874, mstar_err=0.012)
-
