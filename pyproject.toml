@@ -69,8 +69,8 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
 filterwarnings = [
-    "ignore::DeprecationWarning",
-    "ignore::PendingDeprecationWarning",
-    "ignore::UserWarning",
-    "ignore::RuntimeWarning",
+    "ignore:invalid value encountered:RuntimeWarning",
+    "ignore:divide by zero encountered in divide:RuntimeWarning",
+    "ignore:This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.:UserWarning",
+    "ignore:Pandas doesn't allow columns to be created via a new attribute name:UserWarning",
 ]
