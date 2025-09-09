@@ -73,7 +73,7 @@ def telplot(x, y, e, tel, ax, lw=1., telfmt={}, rms=0):
     for k in telfmt:
         kw[k] = telfmt[k]
 
-    if not 'label' in kw.keys():
+    if 'label' not in kw.keys():
         if tel in telfmts_default:
             kw['label'] = telfmts_default[tel]['label']
         else:
