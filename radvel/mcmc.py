@@ -137,7 +137,7 @@ def convergence_check(minAfactor, maxArchange, maxGR, minTz, minsteps, minpercen
     if statevars.ensembles < 3:
         # if less than 3 ensembles then GR between ensembles does
         # not work so just calculate it on the last sampler
-        statevars.tchains = sampler.chain.transpose()
+        statevars.tchains = sampler.get_chain().transpose()
 
     # Must have completed at least 5% or minsteps steps per walker before
     # attempting to calculate GR
@@ -329,8 +329,7 @@ def mcmc(post, nwalkers=50, nrun=10000, ensembles=8, checkinterval=50, minAfacto
                 statevars.initial_positions.append(p0)
             else:
                 statevars.initial_positions.append(statevars.prechains[e][-1, :, :])
-            statevars.samplers.append(emcee.EnsembleSampler(statevars.nwalkers, statevars.ndim, post.logprob_array,
-                                                            threads=1))
+            statevars.samplers.append(emcee.EnsembleSampler(statevars.nwalkers, statevars.ndim, post.logprob_array))
 
         if proceed:
             for i, sampler in enumerate(statevars.samplers):
