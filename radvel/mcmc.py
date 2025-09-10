@@ -595,7 +595,6 @@ def convergence_calculate(chains, oldautocorrelation, minAfactor, maxArchange, m
 
     afactor = np.divide(chains.shape[0], autocorrelation)
 
-    # NOTE: Warning filter for this line depends on number. Adjust when changing
     with warnings.catch_warnings():
         warnings.filterwarnings(
             "ignore",
