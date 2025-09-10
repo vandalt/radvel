@@ -563,25 +563,30 @@ def convergence_calculate(chains, oldautocorrelation, minAfactor, maxArchange, m
     # Equation 23: B(z) in Ford 2006
     means = np.mean(pars,axis=1)
     betweenChainVariances = np.var(means,axis=1, dtype=np.float64) * nsteps
-    varianceofmeans = np.var(means,axis=1, dtype=np.float64) / (nchains-1)
     varEstimate = (
         (1.0 - 1.0/nsteps) * withinChainVariances
         + 1.0 / nsteps * betweenChainVariances
     )
 
-    bz = varianceofmeans * nsteps
-
-    # Equation 24: varhat+(z) in Ford 2006
-    varz = (nsteps-1.0)/bz + varianceofmeans
+    # Tz calculation will yield only NaNs if nchains = 1.
+    # Avoid calculation and warning by skipping explicitly
+    if nchains != 1:
+        varianceofmeans = np.var(means,axis=1, dtype=np.float64) / (nchains-1)
+        bz = varianceofmeans * nsteps
+        # Equation 24: varhat+(z) in Ford 2006
+        varz = (nsteps-1.0)/bz + varianceofmeans
+        # Equation 26: T(z) in Ford 2006
+        vbz = varEstimate / bz
+        tz = nchains*nsteps*vbz[vbz < 1]
+        if tz.size == 0:
+            tz = [-1]
+    else:
+        tz = [-1]
+        minTz = -np.inf
 
     # Equation 25: Rhat(z) in Ford 2006
     gelmanrubin = np.sqrt(varEstimate/withinChainVariances)
 
-    # Equation 26: T(z) in Ford 2006
-    vbz = varEstimate / bz
-    tz = nchains*nsteps*vbz[vbz < 1]
-    if tz.size == 0:
-        tz = [-1]
 
     chains = np.dstack(chains)
     chains = np.swapaxes(chains, 0, 2)
@@ -590,6 +595,7 @@ def convergence_calculate(chains, oldautocorrelation, minAfactor, maxArchange, m
 
     afactor = np.divide(chains.shape[0], autocorrelation)
 
+    # NOTE: Warning filter for this line depends on number. Adjust when changing
     with warnings.catch_warnings():
         warnings.filterwarnings(
             "ignore",
