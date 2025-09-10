@@ -1,3 +1,4 @@
+import warnings
 import time
 import curses
 import sys
@@ -589,7 +590,13 @@ def convergence_calculate(chains, oldautocorrelation, minAfactor, maxArchange, m
 
     afactor = np.divide(chains.shape[0], autocorrelation)
 
-    archange = np.divide(np.abs(np.subtract(autocorrelation, oldautocorrelation)), oldautocorrelation)
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="divide by zero encountered in divide",
+            category=RuntimeWarning,
+        )
+        archange = np.divide(np.abs(np.subtract(autocorrelation, oldautocorrelation)), oldautocorrelation)
 
     # well-mixed criteria
     ismixed = min(tz) > minTz and max(gelmanrubin) < maxGR and \

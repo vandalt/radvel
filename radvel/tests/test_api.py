@@ -1,6 +1,5 @@
 import sys
 import copy
-import warnings
 import time
 import types
 # pytest is now the test runner, but we don't need to import it in test files
@@ -12,7 +11,6 @@ import numpy as np
 import scipy
 import radvel.prior
 
-warnings.simplefilter('ignore')
 
 class _args(types.SimpleNamespace):
     outputdir = '/tmp/'
