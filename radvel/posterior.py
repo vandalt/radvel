@@ -29,7 +29,6 @@ class Posterior(Likelihood):
         self.vparams_order = self.list_vary_params()
 
     def __repr__(self):
-        self.vector.vector_to_dict()
         s = super(Posterior, self).__repr__()
         s += "\nPriors\n"
         s += "------\n"

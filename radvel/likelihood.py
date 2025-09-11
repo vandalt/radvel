@@ -152,6 +152,8 @@ class Likelihood(object):
             i += 1
         assert i == len(param_values_array), \
             "Length of array must match number of varied parameters"
+        self.vector.vector_to_dict()
+
 
     def get_vary_params(self):
         try:
