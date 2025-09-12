@@ -546,14 +546,15 @@ def test_priors_no_transform():
         pass
 
 
-def likelihood_for_pt():
+def likelihood_for_pt(trend_params=True):
     params, _ = params_and_vector_for_priors()
     t = np.linspace(0, 10, num=100)
     vel = np.ones_like(t)
     errvel = np.ones_like(t) * 0.1
     mod = radvel.RVModel(params)
-    mod.params['dvdt'] = radvel.Parameter(value=-0.02)
-    mod.params['curv'] = radvel.Parameter(value=0.01)
+    if trend_params:
+        mod.params['dvdt'] = radvel.Parameter(value=-0.02)
+        mod.params['curv'] = radvel.Parameter(value=0.01)
     like = radvel.likelihood.RVLikelihood(mod, t, vel, errvel)
     like.params['gamma'] = radvel.Parameter(value=0.1, vary=False)
     like.params['jit'] = radvel.Parameter(value=1.0)
@@ -652,6 +653,14 @@ def test_model_comp(setupfn='example_planets/HD164922.py'):
         raise RuntimeError("Unexpected result from model_comp.")
     except AssertionError:  # expected result
         return
+
+
+def test_name_vary_params():
+    like = likelihood_for_pt(trend_params=False)
+    pnames = like.name_vary_params()
+    names_from_params = [k for k in like.params.keys() if like.params[k].vary]
+    assert sorted(names_from_params) == sorted(pnames)
+
 
 if __name__ == '__main__':
     #test_k2()
