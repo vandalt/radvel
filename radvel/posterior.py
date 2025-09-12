@@ -155,7 +155,7 @@ class Posterior(Likelihood):
         Returns:
             float for the extra priors' contribution to the likelihood
         """
-        self.likelihood.set_vary_params(param_values_array)
+        self.likelihood.set_vary_params(param_values_array, fast=True)
         return self.extra_likelihood()
 
     def likelihood_ns_array(self, param_values_array):
@@ -169,7 +169,7 @@ class Posterior(Likelihood):
         Returns:
             Log probability of the likelihood + extra priors
         """
-        self.likelihood.set_vary_params(param_values_array)
+        self.likelihood.set_vary_params(param_values_array, fast=True)
         extra_likelihood = self.extra_likelihood()
         if np.isfinite(extra_likelihood):
             return extra_likelihood + self.likelihood.logprob()
@@ -185,7 +185,7 @@ class Posterior(Likelihood):
         Returns:
             float: log probability of the likelihood + priors
         """
-        self.likelihood.set_vary_params(param_values_array)
+        self.likelihood.set_vary_params(param_values_array, fast=True)
         _logprob = self.logprob()
         # if not np.isfinite(_logprob):
         #     raise ValueError("logprob is NaN for the following posterior:\n{}\n{}".format(self.vary_params,
