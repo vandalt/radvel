@@ -657,6 +657,7 @@ def test_model_comp(setupfn='example_planets/HD164922.py'):
 
 def test_name_vary_params():
     like = likelihood_for_pt(trend_params=False)
+    like.vector.dict_to_vector()
     pnames = like.name_vary_params()
     names_from_params = [k for k in like.params.keys() if like.params[k].vary]
     assert sorted(names_from_params) == sorted(pnames)
